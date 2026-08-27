@@ -1,0 +1,442 @@
+---
+type: plan
+title: Tangible Coding WebMCP Challenge
+period: 2026-08-27 to 2026-09-03
+review: 2026-09-04
+---
+
+# Tangible Coding Studio WebMCP Prototype Action Plan
+
+## Outcomes by 2026-09-03
+States of the world, not tasks. These are the test.
+- [ ] A stable public Mission Builder prototype is accessible without production school credentials.
+- [ ] A compatible browser agent can discover and correctly use all five approved WebMCP tools.
+- [ ] The full P4 storytelling and debugging golden path works from class context to prepared outputs.
+- [ ] Teachers can see, review, accept, edit or reject every agent-proposed change.
+- [ ] The agent cannot approve a lesson and final approval remains a human-only UI action.
+- [ ] The validation engine detects incomplete lessons, impossible equipment allocations, participation gaps, timing problems and privacy risks.
+- [ ] An approved lesson produces a readable Teacher Guide, Pupil Mission Card and Observation Checklist.
+- [ ] The public repository contains only authorised prototype code and sample content, with an open-source licence and clear build instructions.
+- [ ] The competition submission contains a working live URL, public repository, English description, testing instructions and public video under three minutes.
+- [ ] The prototype is clearly presented as a competition prototype rather than the complete commercial Tangible Coding Studio.
+
+## Fixed deadlines
+Set by someone else, cannot move. Date · what · consequence of missing it.
+- 2026-08-31 · WebMCP Challenge office hours and final opportunity to clarify implementation or submission questions · Unresolved technical or rules questions must be solved without organiser guidance.
+- 2026-09-03 · WebMCP Challenge submission deadline · Late projects cannot enter the competition.
+- 2026-09-23 · Expected winner announcement · No effect on the build, but the live project and judging access should remain available until results are confirmed.
+
+## Schedule
+My own sequencing. Can move if something fixed demands it.
+
+### 2026-08-27 to 2026-08-27 · Scope freeze and ownership · creates one buildable competition definition
+- [x] Confirm the competition entry owner and authorised representative.
+  - [x] Record Tangible Coding Ltd as entrant and Bun Tang as authorised representative.
+  - [ ] Confirm the representative is entering from an eligible jurisdiction.
+  - [ ] Receive and retain Ian's written confirmation that the prototype code may be submitted and open-sourced under MIT.
+- [x] Freeze the prototype name as `Tangible Coding Studio — Mission Builder`.
+- [x] Freeze the one-sentence product claim.
+  - [x] Use: `A teacher and an AI agent jointly create, adapt, validate and approve a tangible coding lesson on the same visual lesson canvas.`
+- [x] Freeze the primary demonstration user.
+  - [x] Use a fictional P4 teacher.
+  - [x] Use 24 pupils without names or identifying information.
+  - [x] Use a 45-minute storytelling and debugging lesson.
+  - [x] Use three robots, nine tile sets, three mats and three instruction-card packs.
+- [x] Freeze the five WebMCP tools.
+  - [x] `set_class_context`
+  - [x] `select_tangible_resources`
+  - [x] `build_tangible_mission`
+  - [x] `adapt_for_learners`
+  - [x] `validate_and_prepare_lesson`
+- [x] Freeze the nine-step teacher journey.
+  - [x] Start
+  - [x] Class context
+  - [x] Resources
+  - [x] Build mission
+  - [x] Adapt learners
+  - [x] Validate
+  - [x] Review changes
+  - [x] Teacher approval
+  - [x] Preview and print
+- [x] Mark all excluded functions as out of scope.
+- [ ] Create the public repository with a dated initial commit. (by 2026-08-27)
+  - [ ] Add README with `Pre-existing concept` and `Built during the challenge` sections.
+  - [ ] Add the MIT open-source licence.
+  - [ ] Add a short IP and sample-content notice.
+  - [ ] Confirm no proprietary curriculum pack, school data or supplier-owned asset is committed.
+- [ ] Create the project issue list and label tasks as critical or optional. (by 2026-08-27)
+- [ ] Stop adding features after the scope-freeze checkpoint. (by 2026-08-27)
+
+### 2026-08-28 to 2026-08-28 · Application foundation and visual shell · produces a deployed skeleton with the approved structure
+- [ ] Scaffold the Vite, React and TypeScript application.
+  - [ ] Configure development, build and preview commands.
+  - [ ] Configure linting and basic automated tests.
+  - [ ] Confirm the application builds from a clean checkout.
+- [ ] Install Zod and define shared runtime schemas.
+- [ ] Connect the GitHub repository to Vercel and create the first production deployment.
+- [ ] Create the core source structure.
+  - [ ] Application shell and routes
+  - [ ] Domain types
+  - [ ] Lesson state store
+  - [ ] WebMCP registration module
+  - [ ] Validation module
+  - [ ] Change-control module
+  - [ ] Sample-data module
+  - [ ] Print stylesheet
+- [ ] Build the fixed header.
+  - [ ] Tangible Coding Studio name
+  - [ ] WebMCP Mission Builder label
+  - [ ] Lesson status badge
+  - [ ] Reset Demo action
+  - [ ] Preview Outputs action
+  - [ ] Honest WebMCP connection indicator
+- [ ] Build the three-column desktop layout.
+  - [ ] Left teacher-input and step-navigation panel
+  - [ ] Centre shared lesson canvas
+  - [ ] Right agent-activity and validation panel
+- [ ] Apply the visual system.
+  - [ ] Scotland blue primary colour
+  - [ ] Tangible Coding Tiffany blue accent
+  - [ ] Warm off-white canvas
+  - [ ] Clear typography and visible focus states
+  - [ ] Generic licensed or self-created icons only
+- [ ] Implement Steps 1 to 3 as manual UI.
+  - [ ] Start New Mission
+  - [ ] Load P4 Demo
+  - [ ] Privacy warning
+  - [ ] Class-context form
+  - [ ] Tangible-resource steppers
+- [ ] Implement the initial domain data model.
+  - [ ] Lesson draft
+  - [ ] Class context
+  - [ ] Resource inventory
+  - [ ] Grouping plan
+  - [ ] Mission content
+  - [ ] Adaptation plan
+  - [ ] Validation result
+  - [ ] Change set
+  - [ ] Activity event
+- [ ] Add local browser persistence for one fictional demo draft.
+- [ ] Create the first live deployment. (by 2026-08-28)
+- [ ] Run the foundation checkpoint.
+  - [ ] Live URL loads.
+  - [ ] Blank and sample drafts can be created.
+  - [ ] Required forms are keyboard accessible.
+  - [ ] Page reload restores the current draft.
+  - [ ] No real pupil-data field exists.
+
+### 2026-08-29 to 2026-08-29 · Lesson canvas and teacher workflow · makes the complete process usable without an agent
+- [ ] Build the complete lesson canvas.
+  - [ ] Lesson identity
+  - [ ] Learning intention
+  - [ ] Observable success criteria
+  - [ ] Mission story or problem
+  - [ ] Plan
+  - [ ] Build and Explain
+  - [ ] Test and Debug
+  - [ ] Reflect and Improve
+  - [ ] Group and equipment plan
+  - [ ] Assessment evidence
+  - [ ] Access and support
+  - [ ] Extension challenge
+- [ ] Add inline teacher editing to every relevant lesson section.
+- [ ] Add visible section status.
+  - [ ] Unchanged
+  - [ ] Proposed
+  - [ ] Teacher edited
+  - [ ] Accepted
+- [ ] Implement grouping and resource calculations.
+  - [ ] Calculate recommended groups.
+  - [ ] Calculate pupils per group.
+  - [ ] Identify rotation requirements.
+  - [ ] Identify equipment shortages.
+  - [ ] Support tile-only planning stations when enabled.
+- [ ] Implement Step 4 Build Mission manual controls.
+- [ ] Implement Step 5 Adapt Learners manual controls.
+  - [ ] Reduced reading load
+  - [ ] Visual instructions
+  - [ ] Fewer algorithm steps
+  - [ ] Additional processing time
+  - [ ] Paired explanation
+  - [ ] Predictable role sequence
+  - [ ] Longer route
+  - [ ] Additional debugging fault
+  - [ ] Loop challenge
+  - [ ] Compare solutions
+  - [ ] Design a new mission
+- [ ] Add the complete fictional `The Lost Story Path` sample mission.
+- [ ] Complete the manual-workflow checkpoint. (by 2026-08-29)
+  - [ ] A teacher can complete Steps 1 to 5 without an agent.
+  - [ ] All four Tangible Learning Cycle stages appear.
+  - [ ] Resource constraints visibly affect the lesson.
+  - [ ] Teacher edits persist after reload.
+  - [ ] The UI never implies that sample content is a finished commercial curriculum pack.
+
+### 2026-08-30 to 2026-08-30 · WebMCP tools and shared state · enables the agent to perform structured page actions
+- [ ] Add WebMCP feature detection.
+  - [ ] Show connected only when the required interface is available.
+  - [ ] Show a clear unsupported-browser message when unavailable.
+  - [ ] Keep the manual interface usable without WebMCP.
+- [ ] Register `set_class_context`.
+  - [ ] Implement the approved JSON schema.
+  - [ ] Validate stage, class size, duration, focus, subject and confidence.
+  - [ ] Reject invalid inputs without partial state changes.
+  - [ ] Update the visible Class Brief.
+- [ ] Register `select_tangible_resources`.
+  - [ ] Implement the approved JSON schema.
+  - [ ] Validate inventory ranges.
+  - [ ] Calculate grouping and warnings.
+  - [ ] Update the visible Resource Plan.
+- [ ] Register `build_tangible_mission`.
+  - [ ] Require class and resource context.
+  - [ ] Validate all lesson sections and length limits.
+  - [ ] Populate structured lesson cards rather than returning only prose.
+  - [ ] Preserve teacher-entered context.
+- [ ] Register `adapt_for_learners`.
+  - [ ] Require an existing mission.
+  - [ ] Update only named sections.
+  - [ ] Produce a before-and-after record.
+  - [ ] Preserve unaffected accepted content.
+- [ ] Register `validate_and_prepare_lesson`.
+  - [ ] Support `validate` mode.
+  - [ ] Support `validate-and-prepare` mode.
+  - [ ] Return structured readiness and check results.
+  - [ ] Never set approval state.
+- [ ] Add runtime schema validation for every tool.
+- [ ] Add structured error responses.
+  - [ ] Error code
+  - [ ] Plain-language message
+  - [ ] Invalid field
+  - [ ] Permitted values
+  - [ ] Confirmation that state was not partially changed
+- [ ] Test tool discovery and execution in the supported competition environment. (by 2026-08-30)
+- [ ] Complete the WebMCP checkpoint.
+  - [ ] Exactly five approved tools are discoverable.
+  - [ ] The golden-path prompt activates them in the expected order.
+  - [ ] Every tool visibly changes structured page state.
+  - [ ] Invalid tool input does not corrupt the lesson.
+  - [ ] No approval tool exists.
+
+### 2026-08-31 to 2026-08-31 · Change control, validation and approval · establishes reliability and human control
+- [ ] Implement proposed change sets for all agent-originated changes.
+  - [ ] Record source tool.
+  - [ ] Record affected sections.
+  - [ ] Record before and proposed values.
+  - [ ] Record time of proposal.
+  - [ ] Mark proposals as pending.
+- [ ] Add change decisions.
+  - [ ] Accept individual change
+  - [ ] Edit proposed change
+  - [ ] Reject individual change
+  - [ ] Accept reviewed adaptation set
+  - [ ] Revert to last accepted value
+- [ ] Add stale-proposal protection.
+  - [ ] Teacher changes take priority.
+  - [ ] An outdated agent proposal cannot overwrite a later teacher edit.
+- [ ] Build Step 7 Review Changes.
+  - [ ] Show Section, Before, Proposed, Source and Decision.
+  - [ ] Prevent progression while unresolved proposals remain.
+- [ ] Implement deterministic validation rules.
+  - [ ] Required class context is complete.
+  - [ ] At least one physical participation route exists.
+  - [ ] Group allocation does not exceed inventory.
+  - [ ] All four Tangible Learning Cycle stages exist.
+  - [ ] Two to four observable success criteria exist.
+  - [ ] Assessment evidence links to success criteria.
+  - [ ] Estimated activity time fits the lesson duration.
+  - [ ] Every pupil has a group or rotation route.
+  - [ ] Selected supports appear in the instructions.
+  - [ ] Extension is defined or explicitly declined.
+  - [ ] Beginner teachers receive preparation guidance.
+  - [ ] Free text does not contain obvious personal-data patterns.
+- [ ] Build Step 6 Validation.
+  - [ ] Display Error, Warning and Pass states.
+  - [ ] Link each issue to the affected canvas section.
+  - [ ] Offer Ask Agent to Fix and Edit Myself actions.
+  - [ ] Block readiness while errors remain.
+- [ ] Build Step 8 Teacher Approval.
+  - [ ] Require zero unresolved agent changes.
+  - [ ] Require validation to pass.
+  - [ ] Require a teacher confirmation checkbox.
+  - [ ] Make Approve Lesson a human UI event only.
+  - [ ] Change Approved to Needs Review after any later edit.
+- [ ] Attend or review the competition office-hours material if a rules or implementation question remains. (by 2026-08-31)
+- [ ] Complete the human-control checkpoint.
+  - [ ] Agent proposals are visually distinct.
+  - [ ] Teacher can accept, edit and reject changes.
+  - [ ] Invalid lessons cannot become Ready.
+  - [ ] The agent cannot approve a lesson.
+  - [ ] Editing an approved lesson invalidates approval.
+
+### 2026-09-01 to 2026-09-01 · Outputs, privacy and end-to-end quality assurance · produces a complete and testable product experience
+- [ ] Build Step 9 Output Preview.
+  - [ ] Teacher Guide
+  - [ ] Pupil Mission Card
+  - [ ] Observation Checklist
+- [ ] Add browser print layouts.
+  - [ ] Print current output
+  - [ ] Print all outputs
+  - [ ] Hide internal activity logs
+  - [ ] Remove navigation and controls from print
+  - [ ] Verify readable pagination
+- [ ] Add Reopen Lesson behaviour.
+- [ ] Complete privacy and security review.
+  - [ ] No real pupil or school data is stored.
+  - [ ] Free text is safely rendered.
+  - [ ] Agent content is not inserted through unsafe HTML.
+  - [ ] Tool inputs are validated at runtime.
+  - [ ] Text lengths are limited.
+  - [ ] No secret or API key appears in client code.
+  - [ ] Activity logs exclude hidden model reasoning.
+- [ ] Run the acceptance test catalogue.
+  - [ ] Live URL opens.
+  - [ ] Exactly five tools are discovered.
+  - [ ] Valid class context updates the draft.
+  - [ ] Invalid class size is rejected.
+  - [ ] Three robots for 24 pupils creates a grouping plan.
+  - [ ] Mission tool fills all required cards.
+  - [ ] Reduced-reading adaptation changes only relevant sections.
+  - [ ] Removing Test and Debug creates a blocking error.
+  - [ ] Allocating unavailable equipment creates a blocking error.
+  - [ ] Resolving all errors permits Ready status.
+  - [ ] Agent cannot approve.
+  - [ ] Teacher approval unlocks outputs.
+  - [ ] Editing an approved lesson returns it to Needs Review.
+  - [ ] Outputs print cleanly.
+  - [ ] Reload restores the local draft.
+- [ ] Test the full golden-path prompt repeatedly.
+  - [ ] Test from an empty draft.
+  - [ ] Test from the P4 sample draft.
+  - [ ] Record failures and fixes.
+  - [ ] Confirm the journey can be demonstrated in under three minutes.
+- [ ] Complete accessibility and responsive checks.
+  - [ ] Keyboard navigation
+  - [ ] Visible focus
+  - [ ] Form labels
+  - [ ] Colour-independent status text
+  - [ ] Desktop presentation quality
+- [ ] Freeze the release candidate. (by 2026-09-01)
+  - [ ] Tag the candidate version.
+  - [ ] Deploy the candidate.
+  - [ ] Record the final test URL.
+  - [ ] Stop non-critical UI changes.
+
+### 2026-09-02 to 2026-09-02 · Submission assets and rehearsal · makes the project understandable without live testing
+- [ ] Finalise the public repository.
+  - [ ] README explains the teacher problem.
+  - [ ] README explains why WebMCP improves the experience.
+  - [ ] README explains the five tools.
+  - [ ] README distinguishes prior concept from competition work.
+  - [ ] Setup and test instructions work from a clean checkout.
+  - [ ] Licence is visible.
+  - [ ] Repository contains all required functional source code.
+  - [ ] Repository contains no unauthorised asset or confidential content.
+- [ ] Write the English submission description.
+  - [ ] State the real audience and problem.
+  - [ ] Explain what teacher and agent can do together.
+  - [ ] Explain what was difficult without WebMCP.
+  - [ ] Briefly explain the implementation.
+  - [ ] State prototype limitations honestly.
+- [ ] Write the judge testing instructions.
+  - [ ] Supported browser environment
+  - [ ] Live URL
+  - [ ] P4 demo-loading instruction
+  - [ ] Exact golden-path prompt
+  - [ ] Expected five-tool sequence
+  - [ ] Teacher review and approval actions
+  - [ ] Print-output verification
+- [ ] Prepare screenshots.
+  - [ ] Three-column application
+  - [ ] Agent proposal on lesson canvas
+  - [ ] Validation issue
+  - [ ] Change-review screen
+  - [ ] Human approval screen
+  - [ ] Final outputs
+- [ ] Record the public English demonstration video.
+  - [ ] Introduce the teacher problem.
+  - [ ] Explain ordinary browser-agent weakness.
+  - [ ] Demonstrate the five WebMCP calls.
+  - [ ] Demonstrate teacher review.
+  - [ ] Demonstrate human-only approval.
+  - [ ] Show the three outputs.
+  - [ ] End with the product impact statement.
+- [ ] Verify the video.
+  - [ ] Duration is under three minutes.
+  - [ ] Audio is clear.
+  - [ ] Text is readable.
+  - [ ] No copyrighted music is used.
+  - [ ] No confidential information appears.
+  - [ ] Video is publicly visible on YouTube.
+- [ ] Rehearse the full judge experience from a fresh browser session. (by 2026-09-02)
+- [ ] Enter all submission materials as a draft without final submission. (by 2026-09-02)
+- [ ] Complete the submission-readiness checkpoint.
+  - [ ] Live URL works.
+  - [ ] Repository is public.
+  - [ ] Video is public.
+  - [ ] Description is complete.
+  - [ ] Testing instructions are complete.
+  - [ ] Entry ownership and representative details are correct.
+
+### 2026-09-03 to 2026-09-03 · Final verification and submission · delivers an eligible competition entry
+- [ ] Run a fresh end-to-end production test.
+  - [ ] Open the public URL without developer state.
+  - [ ] Load the P4 demonstration.
+  - [ ] Run the exact golden-path prompt.
+  - [ ] Confirm the five tools execute in the correct order.
+  - [ ] Accept or edit proposed changes.
+  - [ ] Resolve validation findings.
+  - [ ] Confirm the agent cannot approve.
+  - [ ] Approve through the teacher UI.
+  - [ ] Open and print all three outputs.
+- [ ] Check every external link.
+  - [ ] Live application
+  - [ ] Public repository
+  - [ ] Public video
+  - [ ] Testing instructions
+- [ ] Check entry compliance.
+  - [ ] Authorised representative
+  - [ ] Eligible entrant identity
+  - [ ] English materials
+  - [ ] Open-source licence
+  - [ ] Original and authorised content
+  - [ ] Clear evidence of competition-period development
+- [ ] Check the final product message.
+  - [ ] Teacher-facing backstage tool
+  - [ ] One P4 prototype workflow
+  - [ ] Resource-aware tangible learning
+  - [ ] Structured WebMCP interaction
+  - [ ] Visible teacher control
+  - [ ] Not the complete commercial Studio
+- [ ] Submit the project before the fixed deadline. (by 2026-09-03)
+- [ ] Save submission confirmation and final URLs. (by 2026-09-03)
+- [ ] Keep the live application and testing access available for judging. (by 2026-09-03)
+
+### 2026-09-04 to 2026-09-04 · Post-submission review · preserves evidence and converts the prototype into a product-learning asset
+- [ ] Confirm that submission confirmation and all final URLs are stored together.
+- [ ] Record the final deployed version and repository commit.
+- [ ] Record what worked in the seven-day build.
+- [ ] Record technical failures, compromises and deferred work.
+- [ ] Record what the prototype proves about Tangible Coding Studio.
+- [ ] Separate competition feedback from commercial product decisions.
+- [ ] Prepare a short demonstration for Ian and other Tangible Coding stakeholders.
+- [ ] Decide whether to keep the prototype live unchanged until judging ends.
+- [ ] Do not begin the full Studio build until evidence and scope decisions are reviewed.
+
+## Not now
+Deliberately excluded, with the reason.
+- Pupil accounts — the competition prototype is teacher-facing and pupil accounts introduce safeguarding, authentication and data requirements.
+- Real pupil, SEND or attainment data — unnecessary for demonstrating WebMCP and incompatible with the privacy-first prototype boundary.
+- School administration dashboard — does not strengthen the single teacher–agent lesson-design journey.
+- Production authentication and permissions — a fictional demonstration workspace is sufficient for judging.
+- Subscription, payment and commercial licensing — unrelated to proving the WebMCP interaction.
+- Complete P1–P7 curriculum library — too large for the build period and risks exposing commercial curriculum IP.
+- Full CfE database or certification claim — requires separate curriculum governance and evidence.
+- Pupil progress records and advanced analytics — outside the teacher-planning use case and would require sensitive data.
+- Direct RoBico hardware connection — creates hardware, availability and third-party IP dependencies that judges may not be able to test.
+- Production PDF-generation service — browser print views are sufficient to demonstrate the three outputs.
+- Microsoft 365, Google Classroom or school MIS integration — deep integrations are not needed for the competition claim.
+- Multi-school lesson sharing and version history — future Studio roadmap functions that would weaken focus now.
+- Proprietary Tangible Coding lesson packs — the public repository should contain only limited authorised sample content.
+- Supplier-owned RoBico code, images or assets — Tangible Coding Ltd should not publish material it does not own or have permission to use.
+- Independent in-app AI model integration — the compatible browser agent supplies structured tool arguments for the golden path, avoiding unnecessary API-key and deployment risk.
+- Autonomous lesson approval — contradicts the prototype's human-control principle and is intentionally prohibited.
