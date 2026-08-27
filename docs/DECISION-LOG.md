@@ -7,7 +7,7 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 ## D-001 — Product identity
 
 - Date: 2026-08-27
-- Decision: Tangible Coding Studio — Mission Builder
+- Decision: Tangible Coding Studio: Mission Builder
 - Owner: Bun Tang
 - Status: Confirmed
 - Effect: Use this name across repository and submission.

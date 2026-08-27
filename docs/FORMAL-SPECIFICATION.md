@@ -17,7 +17,7 @@ language: "English"
 
 ## 1. Document purpose
 
-This specification defines the competition prototype for **Tangible Coding Studio — Mission Builder**. It is intended to be sufficiently precise for implementation by Codex or a web-development team without expanding the prototype into the full commercial Tangible Coding Studio.
+This specification defines the competition prototype for **Tangible Coding Studio: Mission Builder**. It is intended to be sufficiently precise for implementation by Codex or a web-development team without expanding the prototype into the full commercial Tangible Coding Studio.
 
 The prototype demonstrates one complete human–agent workflow:
 
@@ -102,7 +102,7 @@ The prototype will demonstrate that WebMCP turns a lesson-design website from a 
 
 ### 4.2 Golden-path prompt
 
-> Create a 45-minute P4 storytelling mission for 24 pupils using three robots and nine tile sets. Focus on debugging, include visual support and add an extension challenge for confident learners.
+> Create a 45-minute P4 storytelling mission for 24 pupils. We have three robots, nine tile sets, three activity mats and three instruction-card packs. Focus on debugging. Use reduced reading and visual instructions, then add a loop challenge for confident learners. Validate the lesson and prepare it for my review.
 
 ### 4.3 Golden-path outcome
 

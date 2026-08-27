@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This folder is the complete starting inventory for the Codex project responsible for designing, building, testing, deploying and submitting **Tangible Coding Studio — Mission Builder** to the 2026 OpenAI WebMCP Challenge.
+This folder is the complete starting inventory for the Codex project responsible for designing, building, testing, deploying and submitting **Tangible Coding Studio: Mission Builder** to the 2026 OpenAI WebMCP Challenge.
 
 ## First actions in the new Codex project
 

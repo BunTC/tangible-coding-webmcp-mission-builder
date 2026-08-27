@@ -32,9 +32,9 @@ My own sequencing. Can move if something fixed demands it.
 ### 2026-08-27 to 2026-08-27 · Scope freeze and ownership · creates one buildable competition definition
 - [x] Confirm the competition entry owner and authorised representative.
   - [x] Record Tangible Coding Ltd as entrant and Bun Tang as authorised representative.
-  - [ ] Confirm the representative is entering from an eligible jurisdiction.
   - [ ] Receive and retain Ian's written confirmation that the prototype code may be submitted and open-sourced under MIT.
-- [x] Freeze the prototype name as `Tangible Coding Studio — Mission Builder`.
+- [ ] Complete the separate submission-compliance check that the representative is entering from an eligible jurisdiction. This does not reopen the confirmed product, entrant, representative or company-ownership decisions.
+- [x] Freeze the public competition name as `Tangible Coding Studio: Mission Builder`.
 - [x] Freeze the one-sentence product claim.
   - [x] Use: `A teacher and an AI agent jointly create, adapt, validate and approve a tangible coding lesson on the same visual lesson canvas.`
 - [x] Freeze the primary demonstration user.

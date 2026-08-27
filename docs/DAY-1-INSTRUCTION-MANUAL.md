@@ -110,7 +110,7 @@ Decision: MIT, covering authorised repository code only.
 
 ## D7 — Prototype scope
 
-Decision: Tangible Coding Studio — Mission Builder, as defined in Formal Specification v1.0.
+Decision: Tangible Coding Studio: Mission Builder, as defined in Formal Specification v1.0.
 
 ## D8 — Final approval authority
 
@@ -163,7 +163,7 @@ If the team cannot authorise a company entry today, pause the decision and verif
 ```text
 Hi Ian,
 
-I am preparing a narrow Tangible Coding Studio prototype for the OpenAI WebMCP Challenge. The proposed entry is “Tangible Coding Studio — Mission Builder”: a teacher-facing demonstration in which a teacher and an AI agent create, adapt and validate one P4 tangible coding lesson.
+I am preparing a narrow Tangible Coding Studio prototype for the OpenAI WebMCP Challenge. The proposed entry is “Tangible Coding Studio: Mission Builder”: a teacher-facing demonstration in which a teacher and an AI agent create, adapt and validate one P4 tangible coding lesson.
 
 The public repository would contain only the competition prototype code, generic interface assets and limited fictional sample content. It would not contain our full curriculum, commercial lesson packs, school data, pricing, supplier-owned code or proprietary RoBico assets.
 
@@ -198,7 +198,7 @@ Do not publish proprietary company content if company approval is missing. A rep
 
 **Product:** Tangible Coding Studio  
 **Prototype:** Mission Builder  
-**Competition title:** Tangible Coding Studio — Mission Builder  
+**Competition title:** Tangible Coding Studio: Mission Builder
 **Tagline:** Design a teachable tangible coding mission with your AI partner.
 
 **One-sentence definition:**
@@ -221,7 +221,7 @@ Add the product, prototype, tagline, one-sentence definition and prototype role 
 
 ### Checklist
 
-- [ ] The name is `Tangible Coding Studio — Mission Builder`.
+- [ ] The name is `Tangible Coding Studio: Mission Builder`.
 - [ ] The product is described as teacher-facing.
 - [ ] The agent works on a shared visual lesson canvas.
 - [ ] The prototype is not described as a pupil product.
@@ -550,7 +550,7 @@ tangible-coding-webmcp-mission-builder/
 ### README content for today's initial commit
 
 ```markdown
-# Tangible Coding Studio — Mission Builder
+# Tangible Coding Studio: Mission Builder
 
 Mission Builder is a teacher-facing WebMCP prototype in which a primary teacher and an AI agent jointly create, adapt, validate and review one tangible coding lesson on a shared visual canvas.
 
