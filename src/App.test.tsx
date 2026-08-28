@@ -431,4 +431,72 @@ describe('Mission Builder foundation', () => {
     expect(within(status).queryByRole('alert')).not.toBeInTheDocument()
     expect(status).not.toHaveTextContent('Blocking:')
   })
+
+  it('gates Step 6 until mission and adaptation decisions exist', () => {
+    renderApp()
+    expect(screen.getByRole('button', { name: 'Run validation' })).toBeDisabled()
+    expect(screen.getByText('Complete Steps 4 and 5 before validation.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+    expect(screen.getByRole('button', { name: 'Run validation' })).toBeEnabled()
+  })
+
+  it('loads explicit sample timings, validates, acknowledges a warning and becomes ready for teacher review', async () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    expect(screen.getByLabelText('Plan duration (minutes)')).toHaveValue(10)
+    expect(screen.getByLabelText('Build & Explain duration (minutes)')).toHaveValue(15)
+    expect(screen.getByLabelText('Test & Debug duration (minutes)')).toHaveValue(15)
+    expect(screen.getByLabelText('Reflect & Improve duration (minutes)')).toHaveValue(5)
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+    fireEvent.click(screen.getByRole('button', { name: 'Run validation' }))
+
+    expect(screen.getByText('Warnings need acknowledgement')).toBeInTheDocument()
+    expect(screen.getByText('VAL-11')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Acknowledge VAL-11'))
+    expect(screen.getAllByText('Ready for teacher review')).toHaveLength(2)
+    expect(screen.getByText('Ready means ready for teacher review; validation never approves a lesson.')).toBeInTheDocument()
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('"acknowledgedWarningIds":["VAL-11"]'))
+  })
+
+  it('restores warning acknowledgement and invalidates validation after a Step 4 edit', async () => {
+    const firstRender = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+    fireEvent.click(screen.getByRole('button', { name: 'Run validation' }))
+    fireEvent.click(screen.getByLabelText('Acknowledge VAL-11'))
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('"status":"ready"'))
+    firstRender.unmount()
+
+    renderApp()
+    expect(screen.getByLabelText('Acknowledge VAL-11')).toBeChecked()
+    fireEvent.change(screen.getByLabelText('Plan'), { target: { value: 'Teacher changed the plan.' } })
+    expect(screen.getByText('Not checked')).toBeInTheDocument()
+    expect(screen.getByText('draft')).toBeInTheDocument()
+    await waitFor(() => {
+      const persisted = JSON.parse(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1') ?? '{}')
+      expect(persisted.validation.checks).toEqual([])
+      expect(persisted.validation.acknowledgedWarningIds).toEqual([])
+      expect(persisted.validation.preparedOutputs).toEqual([])
+      expect(persisted.approvedAt).toBeUndefined()
+    })
+  })
+
+  it('shows grouped validation results and the limited-pattern boundary without an agent fix', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+    fireEvent.change(screen.getByLabelText('Plan duration (minutes)'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Run validation' }))
+
+    expect(screen.getByRole('heading', { name: 'Errors' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Warnings' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Passed checks' })).toBeInTheDocument()
+    expect(screen.getByText('This checks only obvious email, labelled phone, international phone and labelled pupil or student name patterns. It is not comprehensive safeguarding detection.')).toBeInTheDocument()
+    expect(screen.getByText('No WebMCP validation or agent fix is connected.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ask agent/i })).not.toBeInTheDocument()
+  })
 })

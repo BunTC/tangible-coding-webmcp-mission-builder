@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { goldenPathClassContext, goldenPathResources } from './lesson-factories'
-import { adaptationPlanSchema, classContextSchema, resourceInventorySchema } from './lesson-schemas'
+import { goldenPathClassContext, goldenPathResources, lostStoryPathMission } from './lesson-factories'
+import { adaptationPlanSchema, classContextSchema, missionContentSchema, resourceInventorySchema, validationCheckSchema } from './lesson-schemas'
 
 describe('manual context schemas', () => {
   it('accepts the canonical P4 class and resource context', () => {
@@ -48,5 +48,36 @@ describe('manual learner adaptation schema', () => {
     const { noAdditionalAdaptation: _omitted, ...legacyAdaptation } = adaptation
     expect(_omitted).toBe(false)
     expect(adaptationPlanSchema.parse({ ...legacyAdaptation, supports: [...legacyAdaptation.supports], extensions: [...legacyAdaptation.extensions] }).noAdditionalAdaptation).toBe(false)
+  })
+})
+
+describe('learning-cycle duration schema', () => {
+  it('accepts positive whole-minute durations', () => {
+    expect(missionContentSchema.safeParse(lostStoryPathMission).success).toBe(true)
+  })
+
+  it.each([0, -1, 1.5])('rejects an invalid stage duration: %s', (value) => {
+    expect(missionContentSchema.safeParse({ ...lostStoryPathMission, planDurationMinutes: value }).success).toBe(false)
+  })
+
+  it('defaults missing legacy stage durations to null', () => {
+    const legacy = { ...lostStoryPathMission } as Record<string, unknown>
+    delete legacy.planDurationMinutes
+    delete legacy.buildAndExplainDurationMinutes
+    delete legacy.testAndDebugDurationMinutes
+    delete legacy.reflectAndImproveDurationMinutes
+    expect(missionContentSchema.parse(legacy)).toMatchObject({
+      planDurationMinutes: null, buildAndExplainDurationMinutes: null,
+      testAndDebugDurationMinutes: null, reflectAndImproveDurationMinutes: null,
+    })
+  })
+})
+
+describe('validation check schema', () => {
+  it('requires a non-empty affected section reference', () => {
+    const check = { id: 'VAL-01', severity: 'error', message: 'Fix this.', suggestedFix: 'Update the field.' }
+    expect(validationCheckSchema.safeParse(check).success).toBe(false)
+    expect(validationCheckSchema.safeParse({ ...check, section: '' }).success).toBe(false)
+    expect(validationCheckSchema.safeParse({ ...check, section: 'classContext' }).success).toBe(true)
   })
 })

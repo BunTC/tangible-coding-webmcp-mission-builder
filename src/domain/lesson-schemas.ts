@@ -54,9 +54,13 @@ export const missionContentSchema = z.object({
   successCriteria: z.array(z.string().max(180)).max(4),
   missionStory: z.string().max(700),
   plan: z.string().max(500),
+  planDurationMinutes: z.number().int().positive().nullable().default(null),
   buildAndExplain: z.string().max(500),
+  buildAndExplainDurationMinutes: z.number().int().positive().nullable().default(null),
   testAndDebug: z.string().max(500),
+  testAndDebugDurationMinutes: z.number().int().positive().nullable().default(null),
   reflectAndImprove: z.string().max(500),
+  reflectAndImproveDurationMinutes: z.number().int().positive().nullable().default(null),
   assessmentEvidence: z.array(z.string().max(180)).max(5),
 })
 
@@ -86,7 +90,8 @@ export const validationCheckSchema = z.object({
   id: z.string(),
   severity: z.enum(['error', 'warning', 'pass']),
   message: z.string(),
-  section: z.string().optional(),
+  section: z.string().min(1),
+  suggestedFix: z.string().default(''),
 })
 
 export const validationResultSchema = z.object({
@@ -94,6 +99,7 @@ export const validationResultSchema = z.object({
   score: z.number().int().min(0),
   checks: z.array(validationCheckSchema),
   preparedOutputs: z.array(z.enum(['teacher-guide', 'mission-card', 'observation-checklist'])),
+  acknowledgedWarningIds: z.array(z.string()).default([]),
 })
 
 export const fieldChangeSchema = z.object({

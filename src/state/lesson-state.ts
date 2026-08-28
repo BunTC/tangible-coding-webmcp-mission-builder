@@ -11,6 +11,7 @@ import {
   type MissionContent,
   type ResourceInventory,
 } from '../domain/lesson-schemas'
+import { validateLesson } from '../domain/lesson-validation'
 
 export const LESSON_STORAGE_KEY = 'tangible-coding-studio:mission-builder:draft:v1'
 
@@ -22,7 +23,15 @@ export type LessonAction =
   | { type: 'update-mission'; payload: MissionContent }
   | { type: 'update-adaptations'; payload: AdaptationPlan }
   | { type: 'clear-mission' }
+  | { type: 'run-validation' }
+  | { type: 'acknowledge-warning'; payload: string }
   | { type: 'reset-demo' }
+
+const emptyValidation = (): LessonDraft['validation'] => ({ readiness: 'blocked', score: 0, checks: [], preparedOutputs: [], acknowledgedWarningIds: [] })
+
+function withInvalidatedValidation(draft: LessonDraft): LessonDraft {
+  return { ...draft, status: 'draft', validation: emptyValidation() }
+}
 
 export function restoreLessonDraft(storage: Pick<Storage, 'getItem'>): LessonDraft {
   try {
@@ -49,34 +58,46 @@ export function persistLessonDraft(storage: Pick<Storage, 'setItem'>, draft: Les
 export function lessonReducer(state: LessonDraft, action: LessonAction): LessonDraft {
   const now = new Date().toISOString()
   if (action.type === 'load-demo') return createGoldenPathDraft(now)
+  if (action.type === 'run-validation') {
+    const validation = validateLesson(state)
+    return { ...state, validation, status: validation.readiness === 'ready' ? 'ready' : 'draft', updatedAt: now }
+  }
+  if (action.type === 'acknowledge-warning') {
+    const acknowledged = state.validation.acknowledgedWarningIds.includes(action.payload)
+      ? state.validation.acknowledgedWarningIds.filter((id) => id !== action.payload)
+      : [...state.validation.acknowledgedWarningIds, action.payload]
+    const validation = validateLesson(state, acknowledged)
+    return { ...state, validation, status: validation.readiness === 'ready' ? 'ready' : 'draft', updatedAt: now }
+  }
   if (action.type === 'load-sample-mission') return {
     ...state,
     title: lostStoryPathMission.title,
     mission: { ...lostStoryPathMission, successCriteria: [...lostStoryPathMission.successCriteria], assessmentEvidence: [...lostStoryPathMission.assessmentEvidence] },
     adaptations: createCleanDraft(now).adaptations,
+    validation: emptyValidation(),
     status: 'draft',
     updatedAt: now,
   }
   if (action.type === 'reset-demo') return createCleanDraft(now)
   if (action.type === 'clear-mission') {
     const clean = createCleanDraft(now)
-    return { ...state, title: 'Untitled mission', mission: clean.mission, adaptations: clean.adaptations, status: 'draft', updatedAt: now }
+    return { ...state, title: 'Untitled mission', mission: clean.mission, adaptations: clean.adaptations, validation: emptyValidation(), status: 'draft', updatedAt: now }
   }
   if (action.type === 'update-class-context') {
     const classContext = classContextSchema.parse(action.payload)
-    return { ...state, classContext, groupingPlan: calculateGrouping(classContext, state.resources), updatedAt: now }
+    return withInvalidatedValidation({ ...state, classContext, groupingPlan: calculateGrouping(classContext, state.resources), updatedAt: now })
   }
   if (action.type === 'update-mission') {
     const mission = missionContentSchema.parse(action.payload)
-    return { ...state, title: mission.title || 'Untitled mission', mission, status: 'draft', updatedAt: now }
+    return withInvalidatedValidation({ ...state, title: mission.title || 'Untitled mission', mission, updatedAt: now })
   }
   if (action.type === 'update-adaptations') {
     const parsed = adaptationPlanSchema.parse(action.payload)
     const adaptations: AdaptationPlan = parsed.noAdditionalAdaptation
       ? { supports: [], extensions: [], supportInstructions: '', extensionInstructions: '', sectionsToUpdate: [], noAdditionalAdaptation: true }
       : { ...parsed, sectionsToUpdate: [], noAdditionalAdaptation: false }
-    return { ...state, adaptations, status: 'draft', updatedAt: now }
+    return withInvalidatedValidation({ ...state, adaptations, updatedAt: now })
   }
   const resources = resourceInventorySchema.parse(action.payload)
-  return { ...state, resources, groupingPlan: calculateGrouping(state.classContext, resources), updatedAt: now }
+  return withInvalidatedValidation({ ...state, resources, groupingPlan: calculateGrouping(state.classContext, resources), updatedAt: now })
 }

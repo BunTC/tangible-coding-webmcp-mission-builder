@@ -116,6 +116,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Status: Confirmed
 - Effect: Selecting no additional adaptation clears conflicting selections and instructions while leaving the controls available; entering instructions or selecting an adaptation clears the decline state. Manual adaptation completion requires non-empty support or extension instructions, or the explicit decline. `sectionsToUpdate` remains reserved for later WebMCP and change-control pending proposals.
 
+## D-015 — Manual lesson validation semantics
+
+- Date: 2026-08-28
+- Decision: Manual Step 6 uses deterministic validation with explicit positive-integer durations for all four learning-cycle stages, whose sum must equal the lesson duration. Assessment validation is completeness-only. Existing support and extension instructions provide adaptation and beginner preparation guidance. Obvious personal-data detection is limited to ordinary email addresses, explicitly labelled phone numbers, clearly international `+number` forms and explicitly labelled pupil or student names. Warnings are acknowledged individually by stable rule ID.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: Errors and unacknowledged warnings prevent readiness. With no errors, all warnings acknowledged and no pending changes, manual validation may move a draft to `ready`, meaning ready for human teacher review only. Any Steps 1–5 edit returns a ready lesson to `draft` and clears stale validation results and acknowledgements. Validation never approves a lesson and leaves `preparedOutputs` empty. The narrow personal-data check is not comprehensive safeguarding detection, and assessment-to-success-criterion mapping is deferred beyond this prototype slice.
+
 ## New decision template
 
 ```markdown

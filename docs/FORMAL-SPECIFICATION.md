@@ -383,6 +383,8 @@ Create the central teaching experience using the Tangible Learning Cycle.
   - load sample mission.
 - Primary button: `Build mission`.
 
+Each Tangible Learning Cycle stage has an explicit `durationMinutes` control. Values must be positive integers and the four stage durations must sum exactly to the lesson duration. Timing is never inferred from prose length.
+
 ### Centre lesson canvas
 
 The canvas contains editable cards in this order:
@@ -510,6 +512,10 @@ Run deterministic checks to establish whether the lesson is complete and physica
 | Adaptation | Selected learner needs appear in the mission instructions |
 | Safety/privacy | No pupil personal data is present in structured fields |
 
+For this prototype, assessment validation checks only that assessment evidence is non-empty; it does not map evidence to individual success criteria. Beginner preparation guidance uses the existing Step 5 `supportInstructions` field. A selected support or extension without its corresponding non-empty instructions is an error.
+
+The personal-data check is deliberately limited to ordinary email-address patterns, phone numbers introduced by `Phone:`, `Tel:` or `Mobile:`, clearly international `+number` forms, and names introduced by `Pupil name:` or `Student name:`. Matching is case-insensitive. Arbitrary names and number sequences are not scanned. This is a limited obvious-pattern check, not comprehensive safeguarding detection.
+
 ### Validation severity
 
 - `Error`: blocks approval.
@@ -547,6 +553,8 @@ The first call runs validation. When validation passes, the same tool prepares t
 ### Completion condition
 
 No blocking errors remain and all warnings are acknowledged or resolved.
+
+Warnings are acknowledged individually by stable validation-rule ID and acknowledgements persist across reload. Editing Steps 1–5 invalidates the previous validation result and its acknowledgements. When there are no errors, all warnings are acknowledged and no pending changes exist, manual validation may move the lesson from `Draft` to `Ready`. `Ready` means ready for human teacher review, never approved. Validation leaves prepared outputs empty.
 
 ## Step 7 — Review agent changes
 
@@ -761,9 +769,13 @@ Update resource state and Resource Plan card.
     },
     "missionStory": {"type": "string", "maxLength": 700},
     "plan": {"type": "string", "maxLength": 500},
+    "planDurationMinutes": {"type": "integer", "minimum": 1},
     "buildAndExplain": {"type": "string", "maxLength": 500},
+    "buildAndExplainDurationMinutes": {"type": "integer", "minimum": 1},
     "testAndDebug": {"type": "string", "maxLength": 500},
+    "testAndDebugDurationMinutes": {"type": "integer", "minimum": 1},
     "reflectAndImprove": {"type": "string", "maxLength": 500},
+    "reflectAndImproveDurationMinutes": {"type": "integer", "minimum": 1},
     "assessmentEvidence": {
       "type": "array",
       "items": {"type": "string", "maxLength": 180},
@@ -771,7 +783,7 @@ Update resource state and Resource Plan card.
       "maxItems": 5
     }
   },
-  "required": ["title", "theme", "challengeLevel", "learningIntention", "successCriteria", "missionStory", "plan", "buildAndExplain", "testAndDebug", "reflectAndImprove", "assessmentEvidence"]
+  "required": ["title", "theme", "challengeLevel", "learningIntention", "successCriteria", "missionStory", "plan", "planDurationMinutes", "buildAndExplain", "buildAndExplainDurationMinutes", "testAndDebug", "testAndDebugDurationMinutes", "reflectAndImprove", "reflectAndImproveDurationMinutes", "assessmentEvidence"]
 }
 ```
 
@@ -892,6 +904,9 @@ interface LessonDraft {
   updatedAt: string;
 }
 
+// MissionContent stores planDurationMinutes, buildAndExplainDurationMinutes,
+// testAndDebugDurationMinutes and reflectAndImproveDurationMinutes as explicit positive integers.
+
 interface ClassContext {
   stage: "P1" | "P2" | "P3" | "P4" | "P5" | "P6" | "P7";
   classSize: number;
@@ -942,13 +957,14 @@ interface ChangeSet {
 | VAL-03 | Group allocation does not exceed inventory | Error |
 | VAL-04 | Mission includes all four Tangible Learning Cycle stages | Error |
 | VAL-05 | Two to four observable success criteria exist | Error |
-| VAL-06 | Assessment evidence links to success criteria | Error |
-| VAL-07 | Estimated total activity time fits the lesson | Error |
+| VAL-06 | At least one non-empty assessment-evidence statement exists; criterion mapping is outside this prototype slice | Error |
+| VAL-07 | Four explicit positive-integer stage durations sum exactly to the lesson duration | Error |
 | VAL-08 | Every pupil is assigned to a group or rotation route | Error |
-| VAL-09 | Selected supports appear in instructions | Warning |
-| VAL-10 | At least one extension is defined or explicitly declined | Warning |
+| VAL-09 | Every selected support has non-empty support instructions | Error |
+| VAL-10 | Extension is defined or explicitly declined; a selected extension without instructions is an error | Warning or Error |
 | VAL-11 | Beginner teacher receives preparation guidance | Warning |
-| VAL-12 | No obvious personal-data pattern appears in free-text fields | Error |
+| VAL-12 | No email, labelled phone, international phone, or labelled pupil/student-name pattern appears in free-text fields | Error |
+| VAL-13 | No unresolved pending change exists before readiness | Error |
 
 ## 15. Error handling
 

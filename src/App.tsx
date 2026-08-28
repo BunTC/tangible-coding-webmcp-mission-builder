@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 import './App.css'
-import { classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ClassContext, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
+import { lostStoryPathMission } from './domain/lesson-factories'
+import { classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
 import { useLessonStore } from './state/lesson-store'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
@@ -21,6 +22,13 @@ const extensionOptions: Array<{ value: AdaptationPlan['extensions'][number]; lab
   { value: 'loop-challenge', label: 'Loop challenge' }, { value: 'compare-solutions', label: 'Compare solutions' },
   { value: 'design-new-mission', label: 'Design a new mission' },
 ]
+const durationFields = {
+  planDurationMinutes: 'Plan',
+  buildAndExplainDurationMinutes: 'Build & Explain',
+  testAndDebugDurationMinutes: 'Test & Debug',
+  reflectAndImproveDurationMinutes: 'Reflect & Improve',
+} as const
+type DurationField = keyof typeof durationFields
 
 function App() {
   const { draft, dispatch } = useLessonStore()
@@ -29,6 +37,9 @@ function App() {
   const [missionStart, setMissionStart] = useState<'sample' | 'blank'>('sample')
   const [classSizeInput, setClassSizeInput] = useState(String(classContext.classSize))
   const [adaptationErrors, setAdaptationErrors] = useState({ support: false, extension: false })
+  const [durationInputs, setDurationInputs] = useState<Record<DurationField, string>>(() => Object.fromEntries(
+    Object.keys(durationFields).map((key) => [key, mission[key as DurationField] == null ? '' : String(mission[key as DurationField])]),
+  ) as Record<DurationField, string>)
   const missionExists = mission.title.trim().length > 0
   const adaptationComplete = !adaptationErrors.support && !adaptationErrors.extension && (
     adaptations.noAdditionalAdaptation
@@ -47,8 +58,17 @@ function App() {
     items[index] = value
     updateMission({ [key]: items })
   }
+  const resetDurationInputs = (values?: MissionContent) => setDurationInputs(Object.fromEntries(
+    Object.keys(durationFields).map((key) => [key, values?.[key as DurationField] == null ? '' : String(values[key as DurationField])]),
+  ) as Record<DurationField, string>)
+  const updateStageDuration = (key: DurationField, value: string) => {
+    setDurationInputs((current) => ({ ...current, [key]: value }))
+    const parsed = /^\d+$/.test(value) ? Number(value) : null
+    updateMission({ [key]: parsed !== null && Number.isInteger(parsed) && parsed > 0 ? parsed : null })
+  }
   const buildMission = () => {
     setAdaptationErrors({ support: false, extension: false })
+    resetDurationInputs(missionStart === 'sample' ? lostStoryPathMission : undefined)
     dispatch({ type: missionStart === 'sample' ? 'load-sample-mission' : 'clear-mission' })
   }
   const handleAdaptationOption = (kind: 'supports' | 'extensions', value: string, checked: boolean) => {
@@ -77,11 +97,13 @@ function App() {
   const resetDraft = () => {
     setClassSizeInput('24')
     setAdaptationErrors({ support: false, extension: false })
+    resetDurationInputs()
     dispatch({ type: 'reset-demo' })
   }
   const loadDemo = () => {
     setClassSizeInput('24')
     setAdaptationErrors({ support: false, extension: false })
+    resetDurationInputs()
     dispatch({ type: 'load-demo' })
   }
   const handleFocus = (event: ChangeEvent<HTMLInputElement>) => {
@@ -98,7 +120,7 @@ function App() {
     <main className="workspace">
       <aside className="panel journey-panel">
         <div className="panel-heading"><p className="eyebrow">Journey</p><h2>Manual setup</h2></div>
-        <nav aria-label="Mission Builder journey"><ol className="journey-list">{journeySteps.map((step, index) => <li className={index < 3 ? 'current-step' : ''} key={step}><span>{index + 1}</span>{step}</li>)}</ol></nav>
+        <nav aria-label="Mission Builder journey"><ol className="journey-list">{journeySteps.map((step, index) => <li className={index < 6 ? 'current-step' : ''} key={step}><span>{index + 1}</span>{step}</li>)}</ol></nav>
         <section className="setup-controls" aria-labelledby="start-title"><h3 id="start-title">1. Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><button type="button" className="primary-button" onClick={resetDraft}>Start New Mission</button><button type="button" className="secondary-button" onClick={loadDemo}>Load P4 Demo</button></section>
         <form className="setup-controls" aria-labelledby="class-title">
           <h3 id="class-title">2. Class context</h3>
@@ -127,9 +149,16 @@ function App() {
           <p className={`adaptation-status ${missionExists && adaptationComplete ? 'complete' : ''}`} role="status" aria-label="Step 5 completion status" aria-live="polite" aria-atomic="true">{!missionExists ? 'Step 5 unavailable' : adaptationComplete ? 'Step 5 complete' : 'Step 5 incomplete: add support or extension instructions, or explicitly decline additional adaptation.'}</p>
           <p>Manual teacher decisions only. Agent adaptation is unavailable in this foundation.</p>
         </section>
+        <section className="setup-controls validation-controls" aria-labelledby="validation-controls-title">
+          <h3 id="validation-controls-title">6. Validate lesson</h3>
+          <p>Run deterministic checks against the current teacher-edited draft.</p>
+          <button type="button" className="primary-button" disabled={!missionExists || !adaptationComplete} onClick={() => dispatch({ type: 'run-validation' })}>Run validation</button>
+          {(!missionExists || !adaptationComplete) && <p className="blocking-note">Complete Steps 4 and 5 before validation.</p>}
+          <p>Manual validation only. Agent fixes and WebMCP validation are unavailable.</p>
+        </section>
       </aside>
       <section className="lesson-canvas" aria-labelledby="lesson-title">
-        <div className="canvas-intro"><div><p className="eyebrow">Fictional lesson draft</p><h2 id="lesson-title">{draft.title}</h2><p className="lesson-summary">Manual Steps 1–5 update this shared lesson canvas. Teacher edits are saved locally in this browser.</p></div><span className="draft-badge">{draft.status}</span></div>
+        <div className="canvas-intro"><div><p className="eyebrow">Fictional lesson draft</p><h2 id="lesson-title">{draft.title}</h2><p className="lesson-summary">Manual Steps 1–6 update this shared lesson canvas. Teacher edits and validation are saved locally in this browser.</p></div><span className="draft-badge">{draft.status === 'ready' ? 'Ready for teacher review' : draft.status}</span></div>
         <dl className="context-strip"><div><dt>Class</dt><dd>{classContext.classSize} fictional {classContext.stage} pupils</dd></div><div><dt>Duration</dt><dd>{classContext.durationMinutes} minutes</dd></div><div><dt>Focus</dt><dd>{classContext.learningFocus.join(', ')}</dd></div></dl>
         <section className="canvas-card" aria-labelledby="brief-title"><div className="card-kicker">Class brief</div><h3 id="brief-title">{classContext.subjectContext} · {classContext.teacherConfidence} confidence</h3><p>{classContext.goal || 'Add an optional fictional lesson goal.'}</p></section>
         <section className="canvas-card resource-plan" aria-labelledby="plan-title"><div className="card-kicker">Resource plan</div><h3 id="plan-title">Current tangible inventory</h3><dl className="inventory-grid">{resourceFields.map(({ key, label }) => <div key={key}><dt>{label}</dt><dd>{resources[key]}</dd></div>)}</dl><div className="grouping-status" role="status" aria-label="Grouping calculation status" aria-live="polite" aria-atomic="true"><dl className="grouping-summary"><div><dt>Required groups</dt><dd>{groupingPlan.recommendedGroups || 'None'}</dd></div><div><dt>Simultaneous capacity</dt><dd>{groupingPlan.simultaneousCapacity}</dd></div><div><dt>Pupils per group</dt><dd>{groupingPlan.pupilsPerGroup || 'None'}</dd></div><div><dt>Rotation</dt><dd>{groupingPlan.rotationRequired ? 'Required' : 'Not required'}</dd></div><div><dt>Tile-only groups</dt><dd>{resources.allowTileOnlyGroups ? 'Enabled' : 'Disabled'}</dd></div></dl>{groupingPlan.participationRoute && <p>{groupingPlan.participationRoute}</p>}</div>{groupingPlan.warnings.map((warning) => <p className="blocking-warning" role="alert" key={warning}>{warning}</p>)}</section>
@@ -138,10 +167,10 @@ function App() {
           <MissionTextCard label="Learning intention" title="What pupils are learning" value={mission.learningIntention} maxLength={240} onChange={(value) => updateMission({ learningIntention: value })} />
           <MissionListCard label="Success criteria" items={mission.successCriteria} minimumRows={2} maximumRows={4} maxLength={180} onChange={(index, value) => updateMissionList('successCriteria', index, value)} onAdd={() => updateMission({ successCriteria: [...mission.successCriteria, ''] })} />
           <MissionTextCard label="Mission story or problem" title="The challenge" value={mission.missionStory} maxLength={700} onChange={(value) => updateMission({ missionStory: value })} />
-          <MissionTextCard label="Plan" title="Plan" value={mission.plan} maxLength={500} onChange={(value) => updateMission({ plan: value })} />
-          <MissionTextCard label="Build & Explain" title="Build & Explain" value={mission.buildAndExplain} maxLength={500} onChange={(value) => updateMission({ buildAndExplain: value })} />
-          <MissionTextCard label="Test & Debug" title="Test & Debug" value={mission.testAndDebug} maxLength={500} onChange={(value) => updateMission({ testAndDebug: value })} />
-          <MissionTextCard label="Reflect & Improve" title="Reflect & Improve" value={mission.reflectAndImprove} maxLength={500} onChange={(value) => updateMission({ reflectAndImprove: value })} />
+          <MissionTextCard label="Plan" title="Plan" value={mission.plan} maxLength={500} durationValue={durationInputs.planDurationMinutes} onDurationChange={(value) => updateStageDuration('planDurationMinutes', value)} onChange={(value) => updateMission({ plan: value })} />
+          <MissionTextCard label="Build & Explain" title="Build & Explain" value={mission.buildAndExplain} maxLength={500} durationValue={durationInputs.buildAndExplainDurationMinutes} onDurationChange={(value) => updateStageDuration('buildAndExplainDurationMinutes', value)} onChange={(value) => updateMission({ buildAndExplain: value })} />
+          <MissionTextCard label="Test & Debug" title="Test & Debug" value={mission.testAndDebug} maxLength={500} durationValue={durationInputs.testAndDebugDurationMinutes} onDurationChange={(value) => updateStageDuration('testAndDebugDurationMinutes', value)} onChange={(value) => updateMission({ testAndDebug: value })} />
+          <MissionTextCard label="Reflect & Improve" title="Reflect & Improve" value={mission.reflectAndImprove} maxLength={500} durationValue={durationInputs.reflectAndImproveDurationMinutes} onDurationChange={(value) => updateStageDuration('reflectAndImproveDurationMinutes', value)} onChange={(value) => updateMission({ reflectAndImprove: value })} />
           <section className="canvas-card editable-card"><div className="card-kicker">Group and equipment plan</div><h3>Resource-aware participation</h3><p>{groupingPlan.participationRoute ? `${groupingPlan.recommendedGroups} required groups; ${groupingPlan.simultaneousCapacity} can use a station at once.${groupingPlan.rotationRequired ? ' A station rotation is included.' : ''}` : 'Resolve the resource warning before planning participation.'}</p></section>
           <MissionListCard label="Assessment evidence" items={mission.assessmentEvidence} minimumRows={1} maximumRows={5} maxLength={180} onChange={(index, value) => updateMissionList('assessmentEvidence', index, value)} onAdd={() => updateMission({ assessmentEvidence: [...mission.assessmentEvidence, ''] })} />
         </section>
@@ -150,7 +179,7 @@ function App() {
           <AdaptationCard title="Extension challenge" selected={extensionOptions.filter(({ value }) => adaptations.extensions.includes(value)).map(({ label }) => label)} instructions={adaptations.extensionInstructions} declined={adaptations.noAdditionalAdaptation} />
         </section>
       </section>
-      <aside className="panel readiness-panel"><div className="panel-heading"><p className="eyebrow">Review & readiness</p><h2>Teacher approval required</h2></div><div className="notice notice-warning"><strong>Human decision boundary</strong><p>Only the teacher can approve a lesson. Agent approval is not available.</p></div><div className="notice notice-info"><strong>Sample information only</strong><p>Do not enter pupil names, school details, diagnoses, attainment records or personal data.</p></div><div className="notice notice-info"><strong>Agent adaptation unavailable</strong><p>Step 5 currently records manual teacher decisions only. No agent proposal is created.</p></div><div className="notice notice-info"><strong>Local draft</strong><p>One fictional lesson draft is saved in this browser. No credentials or browser-agent data are stored.</p></div></aside>
+      <ValidationPanel draft={draft} onAcknowledge={(id) => dispatch({ type: 'acknowledge-warning', payload: id })} />
     </main>
   </div>
 }
@@ -166,15 +195,55 @@ function AdaptationCard({ title, selected, instructions, declined }: { title: st
   return <section className="canvas-card adaptation-card"><div className="card-kicker">{title} · Manual draft</div><h4>{title}</h4>{declined ? <p>No additional adaptation selected for this demo.</p> : <><p>{selected.length > 0 ? selected.join(' · ') : `No ${title.toLowerCase()} options selected.`}</p><p>{instructions || 'Add class-level instructions to complete this adaptation decision.'}</p></>}</section>
 }
 
-function MissionTextCard({ label, title, value, maxLength, onChange }: { label: string; title: string; value: string; maxLength: number; onChange: (value: string) => void }) {
+function MissionTextCard({ label, title, value, maxLength, durationValue, onDurationChange, onChange }: { label: string; title: string; value: string; maxLength: number; durationValue?: string; onDurationChange?: (value: string) => void; onChange: (value: string) => void }) {
   const id = `mission-${label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
-  return <section className="canvas-card editable-card"><div className="card-kicker">{label} · Manual draft</div><label htmlFor={id}>{title}</label><textarea id={id} value={value} maxLength={maxLength} placeholder={`Add ${label.toLowerCase()}`} onChange={(event) => onChange(event.target.value)} /><small>{value.length}/{maxLength} characters</small></section>
+  const durationId = `duration-${label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
+  return <section className="canvas-card editable-card"><div className="card-kicker">{label} · Manual draft</div><label htmlFor={id}>{title}</label><textarea id={id} value={value} maxLength={maxLength} placeholder={`Add ${label.toLowerCase()}`} onChange={(event) => onChange(event.target.value)} /><small>{value.length}/{maxLength} characters</small>{onDurationChange && <label className="duration-field" htmlFor={durationId}>{label} duration (minutes)<input id={durationId} type="number" min="1" step="1" inputMode="numeric" value={durationValue} aria-describedby="cycle-duration-description" onChange={(event) => onDurationChange(event.target.value)} /></label>}</section>
 }
 
 function MissionListCard({ label, items, minimumRows, maximumRows, maxLength, onChange, onAdd }: { label: string; items: string[]; minimumRows: number; maximumRows: number; maxLength: number; onChange: (index: number, value: string) => void; onAdd: () => void }) {
   const rows = Array.from({ length: Math.max(minimumRows, items.length) }, (_, index) => items[index] ?? '')
   const itemLabel = label === 'Success criteria' ? 'Success criterion' : 'Assessment evidence'
-  return <section className="canvas-card editable-card"><div className="card-kicker">{label} · Manual draft</div><h3>{label}</h3>{rows.map((item, index) => <label key={index}>{itemLabel} {index + 1}<input value={item} maxLength={maxLength} onChange={(event) => onChange(index, event.target.value)} /></label>)}{rows.length < maximumRows && <button type="button" className="secondary-button add-row-button" onClick={onAdd}>Add {itemLabel.toLowerCase()}</button>}</section>
+  return <section className="canvas-card editable-card"><div className="card-kicker">{label} · Manual draft</div><h3>{label}</h3>{rows.map((item, index) => <label key={index}>{itemLabel} {index + 1}<input id={`${itemLabel.toLowerCase().replaceAll(' ', '-')}-${index + 1}`} value={item} maxLength={maxLength} onChange={(event) => onChange(index, event.target.value)} /></label>)}{rows.length < maximumRows && <button type="button" className="secondary-button add-row-button" onClick={onAdd}>Add {itemLabel.toLowerCase()}</button>}</section>
+}
+
+function ValidationPanel({ draft, onAcknowledge }: { draft: LessonDraft; onAcknowledge: (id: string) => void }) {
+  const { validation } = draft
+  const groups = [
+    { severity: 'error' as const, title: 'Errors' },
+    { severity: 'warning' as const, title: 'Warnings' },
+    { severity: 'pass' as const, title: 'Passed checks' },
+  ]
+  const errors = validation.checks.filter(({ severity }) => severity === 'error').length
+  const warnings = validation.checks.filter(({ severity }) => severity === 'warning').length
+  const focusSection = (section?: string) => {
+    const selectors: Record<string, string> = {
+      'class-context': 'input[type="number"][max="40"]', 'resource-plan': '.resource-plan', 'mission-content': '#mission-lesson-identity',
+      'success-criteria': '#success-criterion-1', 'assessment-evidence': '#assessment-evidence-1',
+      'cycle-durations': '#duration-plan', 'support-instructions': '#support-instructions',
+      'extension-instructions': '#extension-instructions', 'review-changes': '.validation-controls',
+    }
+    const target = section ? document.querySelector<HTMLElement>(selectors[section]) : null
+    if (target) {
+      if (!target.matches('input, textarea, button, select, [tabindex]')) target.tabIndex = -1
+      target.focus()
+      target.scrollIntoView?.({ block: 'center' })
+    }
+  }
+
+  return <aside className="panel readiness-panel"><div className="panel-heading"><p className="eyebrow">Review & readiness</p><h2>Manual lesson validation</h2></div>
+    <div className="validation-summary" role="status" aria-live="polite" aria-atomic="true"><strong>{validation.checks.length === 0 ? 'Not checked' : validation.readiness === 'ready' ? 'Ready for teacher review' : validation.readiness === 'warning' ? 'Warnings need acknowledgement' : 'Validation blocked'}</strong>{validation.checks.length > 0 && <p>{validation.score} passed · {errors} errors · {warnings} warnings</p>}</div>
+    {validation.checks.length > 0 && <div className="validation-results">{groups.map(({ severity, title }) => {
+      const items = validation.checks.filter((item) => item.severity === severity)
+      return items.length > 0 && <section key={severity} aria-labelledby={`validation-${severity}`}><h3 id={`validation-${severity}`}>{title}</h3><ul>{items.map((item) => <li className={`validation-${severity}`} key={item.id}><strong>{item.id}</strong><p>{item.message}</p>{item.suggestedFix && <p>{item.suggestedFix}</p>}{severity !== 'pass' && <button type="button" className="secondary-button" onClick={() => focusSection(item.section)}>Edit myself</button>}{severity === 'warning' && <label className="check-label"><input type="checkbox" checked={validation.acknowledgedWarningIds.includes(item.id)} onChange={() => onAcknowledge(item.id)} />Acknowledge {item.id}</label>}</li>)}</ul></section>
+    })}</div>}
+    <p id="cycle-duration-description" className="notice notice-info">Stage durations must be positive whole minutes and total the lesson duration.</p>
+    <div className="notice notice-warning"><strong>Human decision boundary</strong><p>Only the teacher can approve a lesson. Agent approval is not available.</p><p>Ready means ready for teacher review; validation never approves a lesson.</p></div>
+    <div className="notice notice-info"><strong>Sample information only</strong><p>Do not enter pupil names, school details, diagnoses, attainment records or personal data.</p></div>
+    <div className="notice notice-info"><strong>Limited privacy check</strong><p>This checks only obvious email, labelled phone, international phone and labelled pupil or student name patterns. It is not comprehensive safeguarding detection.</p></div>
+    <div className="notice notice-info"><strong>Agent validation unavailable</strong><p>No WebMCP validation or agent fix is connected.</p></div>
+    <div className="notice notice-info"><strong>Agent adaptation unavailable</strong><p>Step 5 currently records manual teacher decisions only. No agent proposal is created.</p></div>
+  </aside>
 }
 
 export default App
