@@ -152,6 +152,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
   19. This slice implements transport-independent change control only. It adds no browser globals, feature detection, WebMCP API syntax, registration, descriptors or tool execution, and the UI continues to state that WebMCP is not connected.
   20. Earlier decisions, especially D-015, remain unchanged. The Formal Specification is updated only where required to make D-016 authoritative.
 
+## D-017 — Adaptation proposal boundaries
+
+- Date: 2026-08-28
+- Decision: Exclude `noAdditionalAdaptation` from all agent-generated and seeded Step 7 proposals. It remains a teacher-only Manual Step 5 decision and is not a proposal section. `learner-support` proposals target only learner support, and `extension-challenge` proposals target only extension challenge.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: No proposal operation may directly set `noAdditionalAdaptation` to `true`. Accepting, editing-and-accepting, rejecting or superseding one adaptation proposal does not automatically accept or modify another section. Existing canonical normalization may clear `noAdditionalAdaptation` when accepted support or extension instructions are added so contradictory state cannot persist; that clearing is an invariant consequence of applying accepted content, not a second proposal operation. Rejecting or superseding a proposal does not change `noAdditionalAdaptation`, and teachers retain the existing Manual Step 5 control for explicitly selecting no additional adaptation.
+
 ## New decision template
 
 ```markdown

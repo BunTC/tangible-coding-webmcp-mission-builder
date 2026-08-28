@@ -588,6 +588,9 @@ Replace the normal centre canvas temporarily with a change-review view:
 - Teacher edits supersede only overlapping operations when the current accepted section differs structurally from the recorded `before` value. Unrelated pending operations remain reviewable.
 - `Edit and accept` preserves the original proposal and records the teacher-modified accepted value.
 - Rejected and superseded operations do not change accepted content.
+- `noAdditionalAdaptation` remains a teacher-only Manual Step 5 decision. It is not a proposal section and no agent-generated or seeded operation may directly set it to `true`.
+- A `learner-support` operation targets only learner support, and an `extension-challenge` operation targets only extension challenge. Resolving one does not automatically accept or modify the other.
+- Applying accepted support or extension instructions may clear `noAdditionalAdaptation` through the existing contradiction-prevention invariant. That normalization is not a second proposal operation. Rejecting or superseding an operation does not change the teacher's explicit-decline state.
 - Every decision receives a timestamp in the local activity log.
 - The agent cannot invoke review decisions.
 - Accepting, rejecting or superseding proposals cannot set `approvedAt`, approve the lesson or mark it ready.
@@ -847,6 +850,8 @@ Return before/after values, affected sections and change-set ID.
 
 Update only named sections and create a reviewable adaptation change set.
 
+`noAdditionalAdaptation` is excluded from agent-generated and seeded proposals. It remains controlled only by the teacher through Manual Step 5. A `learner-support` proposal contains only learner-support values, and an `extension-challenge` proposal contains only extension-challenge values. Applying accepted support or extension instructions may clear an existing explicit decline through invariant normalization, but rejecting or superseding a proposal leaves it unchanged.
+
 ## 10.5 Tool: `validate_and_prepare_lesson`
 
 ### Input schema
@@ -987,6 +992,7 @@ The implementation uses Zod discriminated unions so `before`, `proposed` and any
 13. Manual testing uses a production-valid test-only fixture and documented localStorage seeding, with no production or development simulation control.
 14. The activity log records tool name and affected sections but no prompts, hidden model reasoning, credentials or personal data.
 15. WebMCP transport remains deferred: this decision adds no browser globals, feature detection, registration syntax, descriptors or tool execution.
+16. `noAdditionalAdaptation` is teacher-only Manual Step 5 state. It is not a named proposal section and cannot be set to `true` by an agent-generated or seeded proposal. `learner-support` and `extension-challenge` operations remain independent. Applying accepted support or extension instructions may clear the explicit-decline state only as invariant normalization; rejecting or superseding an operation does not change it.
 
 ## 14. Validation rules for the competition build
 
