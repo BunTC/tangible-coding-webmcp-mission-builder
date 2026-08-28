@@ -548,7 +548,7 @@ Each issue includes:
 
 `validate_and_prepare_lesson`
 
-The first call runs validation. When validation passes, the same tool prepares the three structured output views but does not approve them.
+During the transport-independent change-control slice, the tool uses the same pure validator as Manual Step 6 and leaves `preparedOutputs` empty. Output preparation remains a later task, and the tool never approves the lesson.
 
 ### Completion condition
 
@@ -576,17 +576,21 @@ Replace the normal centre canvas temporarily with a change-review view:
 
 ### Controls
 
-- `Accept selected`;
-- `Reject selected`;
+- `Accept section`;
+- `Edit and accept`;
+- `Reject section`;
 - `Return to canvas`;
-- `Accept all reviewed changes` — enabled only after every change has been opened or selected.
 
 ### Rules
 
-- Teacher edits supersede agent proposals.
-- Rejected changes restore the last accepted value.
+- Decisions are made section-by-section against the closed named-section catalogue in Section 13; arbitrary JSON paths are prohibited.
+- Accepted lesson content remains unchanged until the teacher accepts an operation.
+- Teacher edits supersede only overlapping operations when the current accepted section differs structurally from the recorded `before` value. Unrelated pending operations remain reviewable.
+- `Edit and accept` preserves the original proposal and records the teacher-modified accepted value.
+- Rejected and superseded operations do not change accepted content.
 - Every decision receives a timestamp in the local activity log.
 - The agent cannot invoke review decisions.
+- Accepting, rejecting or superseding proposals cannot set `approvedAt`, approve the lesson or mark it ready.
 
 ### Completion condition
 
@@ -825,7 +829,10 @@ A mission draft exists.
     "extensionInstructions": {"type": "string", "maxLength": 500},
     "sectionsToUpdate": {
       "type": "array",
-      "items": {"type": "string"}
+      "items": {
+        "type": "string",
+        "enum": ["plan", "build-and-explain", "test-and-debug", "reflect-and-improve", "learner-support", "extension-challenge"]
+      }
     }
   },
   "required": ["supports", "extensions", "supportInstructions", "extensionInstructions", "sectionsToUpdate"]
@@ -861,13 +868,13 @@ Update only named sections and create a reviewable adaptation change set.
   "readiness": "blocked | warning | ready",
   "score": "number of passed checks",
   "checks": [],
-  "preparedOutputs": ["teacher-guide", "mission-card", "observation-checklist"]
+  "preparedOutputs": []
 }
 ```
 
 ### Side effect
 
-Update validation state and, when ready, generate structured output views. It must not approve the lesson.
+Call the same pure deterministic validator as Manual Step 6 and update validation state directly. Validation results are derived state and do not become proposals. During this slice `preparedOutputs` remains empty: output preparation is not implemented. The tool must not accept content, mark a lesson approved or set `approvedAt`.
 
 ## 11. State model
 
@@ -875,8 +882,8 @@ Update validation state and, when ready, generate structured output views. It mu
 stateDiagram-v2
     [*] --> Draft
     Draft --> NeedsReview: Agent proposes changes
-    NeedsReview --> Draft: Teacher rejects or edits
-    NeedsReview --> Ready: Changes accepted and validation passes
+    NeedsReview --> Draft: All proposal operations resolved
+    Draft --> Ready: Validation passes
     Ready --> Approved: Teacher approves
     Approved --> NeedsReview: Lesson is edited
     Approved --> [*]: Print or end demo
@@ -898,6 +905,7 @@ interface LessonDraft {
   adaptations: AdaptationPlan;
   validation: ValidationResult;
   pendingChanges: ChangeSet[];
+  changeHistory: ChangeSet[];
   activityLog: ActivityEvent[];
   approvedAt?: string;
   createdAt: string;
@@ -926,27 +934,59 @@ interface ResourceInventory {
   allowTileOnlyGroups: boolean;
 }
 
+type ApprovedToolName =
+  | "set_class_context"
+  | "select_tangible_resources"
+  | "build_tangible_mission"
+  | "adapt_for_learners"
+  | "validate_and_prepare_lesson";
+
+type LessonSectionId =
+  | "class-context" | "tangible-resources" | "lesson-identity"
+  | "learning-intention" | "success-criteria" | "mission-story"
+  | "plan" | "build-and-explain" | "test-and-debug"
+  | "reflect-and-improve" | "assessment-evidence"
+  | "learner-support" | "extension-challenge";
+
+interface ChangeOperation {
+  operationId: string;
+  section: LessonSectionId;
+  before: unknown;
+  proposed: unknown;
+  acceptedValue?: unknown;
+  status: "pending" | "accepted" | "rejected" | "superseded";
+  decidedAt?: string;
+}
+
 interface ChangeSet {
-  id: string;
-  source: "teacher" | "webmcp-agent";
-  toolName?: string;
-  changes: FieldChange[];
-  status: "pending" | "accepted" | "rejected" | "partially-accepted";
+  changeSetId: string;
+  source: "webmcp-agent";
+  toolName: ApprovedToolName;
+  operations: ChangeOperation[];
   createdAt: string;
+  resolvedAt?: string;
 }
 ```
 
+The implementation uses Zod discriminated unions so `before`, `proposed` and any `acceptedValue` are validated for their named section rather than remaining arbitrary values. Aggregate change-set status is derived from operation states and is never stored independently.
+
 ## 13. Change control rules
 
-1. Agent calls never write directly into the accepted lesson version.
-2. Agent calls create a proposed change set.
-3. The UI may display the proposal immediately, but it must be visually marked as proposed.
-4. The teacher accepts, edits or rejects changes.
-5. Validation runs against the current visible working version and reports whether pending changes exist.
-6. Approval requires zero unresolved change sets.
-7. Approval cannot be called through WebMCP.
-8. Editing an approved lesson invalidates approval.
-9. The activity log records tool name and affected sections but no hidden model reasoning.
+1. Agent-originated content never writes directly into the accepted lesson version. A valid proposal preserves accepted content, sets status to `needs-review`, and clears stale validation results and warning acknowledgements.
+2. Change-set and operation IDs plus ISO `createdAt` timestamps are injected, opaque and transport-independent. Duplicate IDs reject the complete proposal atomically.
+3. Each operation targets exactly one closed named section. Grouping plans and validation results are derived state and cannot be proposed as lesson sections.
+4. Tool authority is fixed: `set_class_context` targets `class-context`; `select_tangible_resources` targets `tangible-resources`; `build_tangible_mission` targets named mission sections; and `adapt_for_learners` targets only `plan`, `build-and-explain`, `test-and-debug`, `reflect-and-improve`, `learner-support` and `extension-challenge`. `validate_and_prepare_lesson` creates no accepted-content proposal.
+5. Teachers accept, edit-and-accept or reject operations section-by-section. Resolved operations cannot return to pending.
+6. An overlapping teacher edit or structurally changed `before` value supersedes only that operation. Teacher content always wins; unrelated operations remain pending.
+7. Fully resolved sets move atomically from `pendingChanges` to `changeHistory`. Keep the newest 20 resolved sets, pruning the oldest first; never prune pending proposals. Clear both collections when starting a new mission, resetting or loading the P4 demo, or replacing the mission.
+8. When no pending operation remains, lesson status becomes `draft` and validation must be rerun manually. Proposal resolution never restores `ready` automatically.
+9. Accepted edits invalidate validation and warning acknowledgements. Acceptance, rejection and supersession leave `preparedOutputs` empty and cannot set `approvedAt` or approve a lesson.
+10. Accepted history retains tool provenance and the original proposed value. Teacher-modified acceptance records `acceptedValue`; a later teacher edit changes visible attribution without deleting history.
+11. Validation uses the shared pure validator and reports whether unresolved operations exist. Deterministic validation results update directly rather than becoming proposals.
+12. Existing Steps 1–6 drafts migrate with `changeHistory: []`; legacy empty pending changes are preserved. Malformed legacy proposal data is discarded without discarding otherwise valid lesson content, and stale readiness evidence is cleared.
+13. Manual testing uses a production-valid test-only fixture and documented localStorage seeding, with no production or development simulation control.
+14. The activity log records tool name and affected sections but no prompts, hidden model reasoning, credentials or personal data.
+15. WebMCP transport remains deferred: this decision adds no browser globals, feature detection, registration syntax, descriptors or tool execution.
 
 ## 14. Validation rules for the competition build
 
