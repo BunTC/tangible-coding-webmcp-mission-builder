@@ -1,9 +1,11 @@
 import { calculateGrouping, createCleanDraft, createGoldenPathDraft, lostStoryPathMission } from '../domain/lesson-factories'
 import {
+  adaptationPlanSchema,
   classContextSchema,
   lessonDraftSchema,
   missionContentSchema,
   resourceInventorySchema,
+  type AdaptationPlan,
   type ClassContext,
   type LessonDraft,
   type MissionContent,
@@ -18,6 +20,7 @@ export type LessonAction =
   | { type: 'update-class-context'; payload: ClassContext }
   | { type: 'update-resources'; payload: ResourceInventory }
   | { type: 'update-mission'; payload: MissionContent }
+  | { type: 'update-adaptations'; payload: AdaptationPlan }
   | { type: 'clear-mission' }
   | { type: 'reset-demo' }
 
@@ -50,13 +53,14 @@ export function lessonReducer(state: LessonDraft, action: LessonAction): LessonD
     ...state,
     title: lostStoryPathMission.title,
     mission: { ...lostStoryPathMission, successCriteria: [...lostStoryPathMission.successCriteria], assessmentEvidence: [...lostStoryPathMission.assessmentEvidence] },
+    adaptations: createCleanDraft(now).adaptations,
     status: 'draft',
     updatedAt: now,
   }
   if (action.type === 'reset-demo') return createCleanDraft(now)
   if (action.type === 'clear-mission') {
-    const clean = createCleanDraft(now).mission
-    return { ...state, title: 'Untitled mission', mission: clean, status: 'draft', updatedAt: now }
+    const clean = createCleanDraft(now)
+    return { ...state, title: 'Untitled mission', mission: clean.mission, adaptations: clean.adaptations, status: 'draft', updatedAt: now }
   }
   if (action.type === 'update-class-context') {
     const classContext = classContextSchema.parse(action.payload)
@@ -65,6 +69,13 @@ export function lessonReducer(state: LessonDraft, action: LessonAction): LessonD
   if (action.type === 'update-mission') {
     const mission = missionContentSchema.parse(action.payload)
     return { ...state, title: mission.title || 'Untitled mission', mission, status: 'draft', updatedAt: now }
+  }
+  if (action.type === 'update-adaptations') {
+    const parsed = adaptationPlanSchema.parse(action.payload)
+    const adaptations: AdaptationPlan = parsed.noAdditionalAdaptation
+      ? { supports: [], extensions: [], supportInstructions: '', extensionInstructions: '', sectionsToUpdate: [], noAdditionalAdaptation: true }
+      : { ...parsed, sectionsToUpdate: [], noAdditionalAdaptation: false }
+    return { ...state, adaptations, status: 'draft', updatedAt: now }
   }
   const resources = resourceInventorySchema.parse(action.payload)
   return { ...state, resources, groupingPlan: calculateGrouping(state.classContext, resources), updatedAt: now }

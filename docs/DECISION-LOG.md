@@ -108,6 +108,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Status: Confirmed
 - Effect: Required groups are `ceil(pupils / 8)`. Base station capacity is limited by complete bundles of three tile sets and one instruction-card pack. Robot station capacity is further limited by robots and activity mats. Tile-only mode uses base capacity; robot-only mode uses robot station capacity. Rotation is required only when positive simultaneous capacity is below required groups, and a lesson is blocked when pupils require groups but simultaneous capacity is zero. This supersedes the earlier ambiguous `max(robotCount, activityMatCount)` grouping rule.
 
+## D-014 — Manual learner-adaptation state
+
+- Date: 2026-08-28
+- Decision: Manual Step 5 uses separate support and extension instruction fields with 500-character limits and a persisted `noAdditionalAdaptation` boolean for an explicit teacher decline. It does not use a third 200-character note, rewrite Step 4 mission prose or populate `sectionsToUpdate`.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: Selecting no additional adaptation clears conflicting selections and instructions while leaving the controls available; entering instructions or selecting an adaptation clears the decline state. Manual adaptation completion requires non-empty support or extension instructions, or the explicit decline. `sectionsToUpdate` remains reserved for later WebMCP and change-control pending proposals.
+
 ## New decision template
 
 ```markdown

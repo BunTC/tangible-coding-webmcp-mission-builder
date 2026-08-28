@@ -332,6 +332,20 @@ textarea {
 .editable-card textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .editable-card small { justify-self: end; color: var(--muted); }
 .add-row-button { justify-self: start; padding: 0.5rem 0.8rem; }
+.adaptation-controls fieldset:disabled, .adaptation-controls textarea:disabled { opacity: 0.58; cursor: not-allowed; }
+.adaptation-controls .blocking-note { padding: 0.7rem; border: 1px solid #e2b85f; border-radius: 8px; background: var(--amber-100); color: var(--amber-700); font-weight: 750; }
+.instruction-field { display: grid; gap: 0.35rem; }
+.instruction-field > p, .instruction-field small { margin: 0; }
+.instruction-field textarea { width: 100%; min-height: 96px; padding: 0.6rem; border: 1px solid #aebbc4; border-radius: 7px; resize: vertical; }
+.instruction-field textarea[aria-invalid='true'] { border-color: #a83c31; }
+.instruction-field [role='alert'] { color: #8d2f27; font-weight: 750; }
+.instruction-field small { justify-self: end; color: var(--muted); }
+.decline-control { padding-top: 0.75rem; border-top: 1px solid var(--line); text-transform: none !important; }
+.adaptation-status { padding: 0.7rem; border: 1px solid #e2b85f; border-radius: 8px; background: var(--amber-100); color: var(--amber-700) !important; font-weight: 800; }
+.adaptation-status.complete { border-color: #7bb59a; background: #e8f6ee; color: #246441 !important; }
+.adaptation-section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
+.adaptation-section .section-heading { grid-column: 1 / -1; margin-bottom: 0; }
+.adaptation-card h4 { font-size: 1.05rem; }
 
 .cycle-section {
   margin-top: 2rem;
@@ -502,7 +516,8 @@ textarea {
 
   .context-strip,
   .cycle-grid,
-  .readiness-panel {
+  .readiness-panel,
+  .adaptation-section {
     grid-template-columns: 1fr;
   }
 

@@ -172,6 +172,162 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByLabelText('What pupils are learning')).toHaveValue('We are learning to repair a sequence.')
   })
 
+  it('keeps Step 5 unavailable until a mission exists', () => {
+    renderApp()
+
+    expect(screen.getByLabelText('Reduced reading load')).toBeDisabled()
+    expect(screen.getByLabelText('Support instructions')).toBeDisabled()
+    expect(screen.getByLabelText('Extension instructions')).toBeDisabled()
+    expect(screen.getByLabelText('No additional adaptation for this demo')).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 unavailable')
+    expect(screen.getByText('Build or name a mission before recording learner adaptations.')).toBeInTheDocument()
+  })
+
+  it('records support instructions only and keeps incomplete selections visibly incomplete', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('Reduced reading load'))
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 incomplete')
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Use short phrases and a visual sequence.' } })
+
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 complete')
+    expect(screen.getByRole('heading', { name: 'Access and support' }).closest('.adaptation-card')).toHaveTextContent('Reduced reading load')
+    expect(screen.getByRole('heading', { name: 'Access and support' }).closest('.adaptation-card')).toHaveTextContent('Use short phrases and a visual sequence.')
+    expect(screen.getByLabelText('Extension instructions')).toHaveValue('')
+  })
+
+  it('records extension instructions only', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('Loop challenge'))
+    fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Replace repeated steps with a loop.' } })
+
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 complete')
+    expect(screen.getByRole('heading', { name: 'Extension challenge' }).closest('.adaptation-card')).toHaveTextContent('Loop challenge')
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('')
+  })
+
+  it('records both support and extension instructions', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Show each instruction visually.' } })
+    fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Ask pupils to compare two solutions.' } })
+
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('Show each instruction visually.')
+    expect(screen.getByLabelText('Extension instructions')).toHaveValue('Ask pupils to compare two solutions.')
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 complete')
+  })
+
+  it('accepts 500 characters and rejects an over-limit instruction without mutating state', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    const instructions = screen.getByLabelText('Support instructions')
+    fireEvent.change(instructions, { target: { value: 's'.repeat(500) } })
+    expect(instructions).toHaveValue('s'.repeat(500))
+    expect(screen.getByText('500/500 characters')).toBeInTheDocument()
+
+    fireEvent.change(instructions, { target: { value: 'x'.repeat(501) } })
+    expect(instructions).toHaveValue('s'.repeat(500))
+    expect(instructions).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Enter no more than 500 characters.')).toHaveAttribute('role', 'alert')
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 incomplete')
+  })
+
+  it('resolves conflicts between instructions and an explicit no-adaptation decision', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('Visual instructions'))
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Use picture prompts.' } })
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+
+    expect(screen.getByLabelText('No additional adaptation for this demo')).toBeChecked()
+    expect(screen.getByLabelText('Visual instructions')).not.toBeChecked()
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('')
+    expect(screen.getByRole('heading', { name: 'Access and support' }).closest('.adaptation-card')).toHaveTextContent('No additional adaptation selected for this demo.')
+
+    fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Add one loop challenge.' } })
+    expect(screen.getByLabelText('No additional adaptation for this demo')).not.toBeChecked()
+    expect(screen.getByLabelText('Extension instructions')).toHaveValue('Add one loop challenge.')
+
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+    fireEvent.click(screen.getByLabelText('Loop challenge'))
+    expect(screen.getByLabelText('No additional adaptation for this demo')).not.toBeChecked()
+    expect(screen.getByLabelText('Loop challenge')).toBeChecked()
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 incomplete')
+  })
+
+  it('persists manual adaptation decisions across reload', async () => {
+    const firstRender = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('Paired explanation'))
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Explain the route with a partner.' } })
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('Explain the route with a partner.'))
+    firstRender.unmount()
+
+    renderApp()
+    expect(screen.getByLabelText('Paired explanation')).toBeChecked()
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('Explain the route with a partner.')
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 complete')
+  })
+
+  it('persists the explicit no-additional-adaptation decision across reload', async () => {
+    const firstRender = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('"noAdditionalAdaptation":true'))
+    firstRender.unmount()
+
+    renderApp()
+    expect(screen.getByLabelText('No additional adaptation for this demo')).toBeChecked()
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 complete')
+  })
+
+  it('clears adaptations for sample, blank and new mission actions', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'First adaptation.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('')
+    expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 incomplete')
+
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Second adaptation.' } })
+    fireEvent.change(screen.getByLabelText('Starting method'), { target: { value: 'blank' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('')
+    expect(screen.getByLabelText('Support instructions')).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Mission title'), { target: { value: 'Teacher mission' } })
+    fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Third adaptation.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    expect(screen.getByLabelText('Extension instructions')).toHaveValue('')
+    expect(screen.getByLabelText('Extension instructions')).toBeDisabled()
+  })
+
+  it('keeps Step 4 prose, resources and grouping unchanged and sectionsToUpdate empty', async () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('The Lost Story Path'))
+    const before = JSON.parse(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1') ?? '{}')
+    fireEvent.click(screen.getByLabelText('Reduced reading load'))
+    fireEvent.click(screen.getByLabelText('Visual instructions'))
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Use less text and show each step.' } })
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('Use less text and show each step.'))
+    const after = JSON.parse(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1') ?? '{}')
+
+    expect(JSON.stringify(after.mission)).toBe(JSON.stringify(before.mission))
+    expect(after.resources).toEqual(before.resources)
+    expect(after.groupingPlan).toEqual(before.groupingPlan)
+    expect(after.adaptations.sectionsToUpdate).toEqual([])
+  })
+
+  it('keeps privacy, teacher-only approval and unavailable agent adaptation visible', () => {
+    renderApp()
+    expect(screen.getByText('Only the teacher can approve a lesson. Agent approval is not available.')).toBeInTheDocument()
+    expect(screen.getByText('Do not enter pupil names, school details, diagnoses, attainment records or personal data.')).toBeInTheDocument()
+    expect(screen.getByText('Step 5 currently records manual teacher decisions only. No agent proposal is created.')).toBeInTheDocument()
+  })
+
   it.each([
     ['a temporary empty value', ''],
     ['non-numeric input', 'not-a-number'],

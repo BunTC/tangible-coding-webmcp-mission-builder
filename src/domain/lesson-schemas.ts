@@ -79,6 +79,7 @@ export const adaptationPlanSchema = z.object({
   supportInstructions: z.string().max(500),
   extensionInstructions: z.string().max(500),
   sectionsToUpdate: z.array(z.string()),
+  noAdditionalAdaptation: z.boolean().default(false),
 })
 
 export const validationCheckSchema = z.object({

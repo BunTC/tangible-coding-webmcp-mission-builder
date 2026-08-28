@@ -459,7 +459,16 @@ Extension checkboxes:
 - explain two solutions;
 - design a new mission.
 
-Optional note: maximum 200 characters and no personal pupil information.
+Structured instruction fields:
+
+- `Support instructions` — maximum 500 characters;
+- `Extension instructions` — maximum 500 characters.
+
+Both fields use fictional class-level information only and must not contain personal pupil information.
+
+Include checkbox: `No additional adaptation for this demo`. This is an explicit teacher decision. Selecting it clears support and extension selections and instructions. The controls remain available; entering either instruction field or selecting any support or extension clears the explicit-decline state.
+
+Manual Step 5 records teacher decisions in the adaptation plan only. It does not rewrite Step 4 mission prose and leaves `sectionsToUpdate` empty. That field is reserved for later WebMCP and change-control proposals.
 
 ### Centre canvas behaviour
 
@@ -480,7 +489,7 @@ Display a before/after comparison for each changed section. Teacher can accept c
 
 ### Completion condition
 
-At least one support or extension decision is recorded, or the teacher explicitly selects `No additional adaptation for this demo`.
+At least one non-empty support or extension instruction is recorded, or the teacher explicitly selects `No additional adaptation for this demo`. Selected checkboxes without corresponding instructions remain visibly incomplete.
 
 ## Step 6 — Validate lesson
 

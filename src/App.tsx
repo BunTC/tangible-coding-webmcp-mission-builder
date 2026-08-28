@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from 'react'
 import './App.css'
-import { classContextSchema, durationMinutesSchema, primaryStageSchema, type ClassContext, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
+import { classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ClassContext, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
 import { useLessonStore } from './state/lesson-store'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
@@ -11,25 +11,62 @@ const resourceFields: Array<{ key: keyof Pick<ResourceInventory, 'robots' | 'til
   { key: 'activityMats', label: 'Activity mats', max: 12 }, { key: 'instructionCardPacks', label: 'Instruction-card packs', max: 12 },
   { key: 'roleCards', label: 'Pupil role cards', max: 40 },
 ]
+const supportOptions: Array<{ value: AdaptationPlan['supports'][number]; label: string }> = [
+  { value: 'reduced-reading', label: 'Reduced reading load' }, { value: 'visual-instructions', label: 'Visual instructions' },
+  { value: 'fewer-steps', label: 'Fewer algorithm steps' }, { value: 'additional-time', label: 'Additional processing time' },
+  { value: 'paired-explanation', label: 'Paired explanation' }, { value: 'predictable-roles', label: 'Predictable role sequence' },
+]
+const extensionOptions: Array<{ value: AdaptationPlan['extensions'][number]; label: string }> = [
+  { value: 'longer-route', label: 'Longer route' }, { value: 'extra-debugging-fault', label: 'Additional debugging fault' },
+  { value: 'loop-challenge', label: 'Loop challenge' }, { value: 'compare-solutions', label: 'Compare solutions' },
+  { value: 'design-new-mission', label: 'Design a new mission' },
+]
 
 function App() {
   const { draft, dispatch } = useLessonStore()
   const { classContext, resources, groupingPlan } = draft
-  const { mission } = draft
+  const { mission, adaptations } = draft
   const [missionStart, setMissionStart] = useState<'sample' | 'blank'>('sample')
   const [classSizeInput, setClassSizeInput] = useState(String(classContext.classSize))
+  const [adaptationErrors, setAdaptationErrors] = useState({ support: false, extension: false })
+  const missionExists = mission.title.trim().length > 0
+  const adaptationComplete = !adaptationErrors.support && !adaptationErrors.extension && (
+    adaptations.noAdditionalAdaptation
+    || adaptations.supportInstructions.trim().length > 0
+    || adaptations.extensionInstructions.trim().length > 0
+  )
   const classSizeResult = /^\d+$/.test(classSizeInput)
     ? classContextSchema.shape.classSize.safeParse(Number(classSizeInput))
     : { success: false as const }
   const updateClassContext = (patch: Partial<ClassContext>) => dispatch({ type: 'update-class-context', payload: { ...classContext, ...patch } })
   const updateResource = (key: keyof ResourceInventory, value: number | boolean) => dispatch({ type: 'update-resources', payload: { ...resources, [key]: value } })
   const updateMission = (patch: Partial<MissionContent>) => dispatch({ type: 'update-mission', payload: { ...mission, ...patch } })
+  const updateAdaptations = (patch: Partial<AdaptationPlan>) => dispatch({ type: 'update-adaptations', payload: { ...adaptations, ...patch, sectionsToUpdate: [] } })
   const updateMissionList = (key: 'successCriteria' | 'assessmentEvidence', index: number, value: string) => {
     const items = Array.from({ length: Math.max(index + 1, mission[key].length) }, (_, itemIndex) => mission[key][itemIndex] ?? '')
     items[index] = value
     updateMission({ [key]: items })
   }
-  const buildMission = () => dispatch({ type: missionStart === 'sample' ? 'load-sample-mission' : 'clear-mission' })
+  const buildMission = () => {
+    setAdaptationErrors({ support: false, extension: false })
+    dispatch({ type: missionStart === 'sample' ? 'load-sample-mission' : 'clear-mission' })
+  }
+  const handleAdaptationOption = (kind: 'supports' | 'extensions', value: string, checked: boolean) => {
+    const current = adaptations[kind] as string[]
+    updateAdaptations({ [kind]: checked ? [...current, value] : current.filter((option) => option !== value), noAdditionalAdaptation: false })
+  }
+  const handleAdaptationInstructions = (kind: 'support' | 'extension', value: string) => {
+    if (value.length > 500) {
+      setAdaptationErrors((current) => ({ ...current, [kind]: true }))
+      return
+    }
+    setAdaptationErrors((current) => ({ ...current, [kind]: false }))
+    updateAdaptations({ [`${kind}Instructions`]: value, noAdditionalAdaptation: false })
+  }
+  const handleNoAdditionalAdaptation = (checked: boolean) => {
+    if (checked) setAdaptationErrors({ support: false, extension: false })
+    updateAdaptations({ noAdditionalAdaptation: checked })
+  }
   const updateClassSizeInput = (value: string) => {
     setClassSizeInput(value)
     const result = /^\d+$/.test(value)
@@ -39,10 +76,12 @@ function App() {
   }
   const resetDraft = () => {
     setClassSizeInput('24')
+    setAdaptationErrors({ support: false, extension: false })
     dispatch({ type: 'reset-demo' })
   }
   const loadDemo = () => {
     setClassSizeInput('24')
+    setAdaptationErrors({ support: false, extension: false })
     dispatch({ type: 'load-demo' })
   }
   const handleFocus = (event: ChangeEvent<HTMLInputElement>) => {
@@ -74,9 +113,23 @@ function App() {
         </form>
         <section className="setup-controls" aria-labelledby="resources-title"><h3 id="resources-title">3. Tangible resources</h3>{resourceFields.map(({ key, label, max }) => <div className="stepper" key={key}><span id={`${key}-label`}>{label}</span><button type="button" aria-label={`Decrease ${label}`} disabled={resources[key] === 0} onClick={() => updateResource(key, resources[key] - 1)}>−</button><output aria-labelledby={`${key}-label`}>{resources[key]}</output><button type="button" aria-label={`Increase ${label}`} disabled={resources[key] === max} onClick={() => updateResource(key, resources[key] + 1)}>+</button></div>)}<label className="check-label tile-only-control"><input type="checkbox" checked={resources.allowTileOnlyGroups} onChange={(event) => updateResource('allowTileOnlyGroups', event.target.checked)} />Allow tile-only groups without a robot</label></section>
         <section className="setup-controls" aria-labelledby="mission-controls-title"><h3 id="mission-controls-title">4. Build mission</h3><label>Starting method<select value={missionStart} onChange={(event) => setMissionStart(event.target.value as 'sample' | 'blank')}><option value="sample">Load sample mission</option><option value="blank">Teacher starts from a blank structure</option></select></label><label>Mission theme<input value={mission.theme} maxLength={160} placeholder="e.g. A lost story path" onChange={(event) => updateMission({ theme: event.target.value })} /></label><label>Challenge level<select value={mission.challengeLevel ?? ''} onChange={(event) => updateMission({ challengeLevel: event.target.value ? event.target.value as MissionContent['challengeLevel'] : null })}><option value="">Choose a level</option><option value="introductory">Introductory</option><option value="core">Core</option><option value="stretch">Stretch</option></select></label><button type="button" className="primary-button" onClick={buildMission}>Build mission</button><p>The sample is limited fictional prototype content, not a finished commercial curriculum pack.</p></section>
+        <section className="setup-controls adaptation-controls" aria-labelledby="adapt-controls-title" aria-describedby={!missionExists ? 'adapt-unavailable' : undefined}>
+          <h3 id="adapt-controls-title">5. Adapt learners</h3>
+          {!missionExists && <p id="adapt-unavailable" className="blocking-note">Build or name a mission before recording learner adaptations.</p>}
+          <p id="support-options-description">Select any class-level access approaches that apply.</p>
+          <fieldset disabled={!missionExists} aria-describedby="support-options-description"><legend>Learner supports</legend>{supportOptions.map(({ value, label }) => <label className="check-label" key={value}><input type="checkbox" checked={adaptations.supports.includes(value)} onChange={(event) => handleAdaptationOption('supports', value, event.target.checked)} />{label}</label>)}</fieldset>
+          <AdaptationInstructions kind="support" label="Support instructions" description="Describe the class-level support the teacher will provide." value={adaptations.supportInstructions} disabled={!missionExists} invalid={adaptationErrors.support} onChange={(value) => handleAdaptationInstructions('support', value)} />
+          <p id="extension-options-description">Select any class-level challenge approaches that apply.</p>
+          <fieldset disabled={!missionExists} aria-describedby="extension-options-description"><legend>Extension challenges</legend>{extensionOptions.map(({ value, label }) => <label className="check-label" key={value}><input type="checkbox" checked={adaptations.extensions.includes(value)} onChange={(event) => handleAdaptationOption('extensions', value, event.target.checked)} />{label}</label>)}</fieldset>
+          <AdaptationInstructions kind="extension" label="Extension instructions" description="Describe the class-level extension challenge." value={adaptations.extensionInstructions} disabled={!missionExists} invalid={adaptationErrors.extension} onChange={(value) => handleAdaptationInstructions('extension', value)} />
+          <label className="check-label decline-control"><input type="checkbox" disabled={!missionExists} checked={adaptations.noAdditionalAdaptation} aria-describedby="decline-description" onChange={(event) => handleNoAdditionalAdaptation(event.target.checked)} />No additional adaptation for this demo</label>
+          <p id="decline-description">Select this to clear current adaptation decisions and explicitly complete Step 5 without them.</p>
+          <p className={`adaptation-status ${missionExists && adaptationComplete ? 'complete' : ''}`} role="status" aria-label="Step 5 completion status" aria-live="polite" aria-atomic="true">{!missionExists ? 'Step 5 unavailable' : adaptationComplete ? 'Step 5 complete' : 'Step 5 incomplete: add support or extension instructions, or explicitly decline additional adaptation.'}</p>
+          <p>Manual teacher decisions only. Agent adaptation is unavailable in this foundation.</p>
+        </section>
       </aside>
       <section className="lesson-canvas" aria-labelledby="lesson-title">
-        <div className="canvas-intro"><div><p className="eyebrow">Fictional lesson draft</p><h2 id="lesson-title">{draft.title}</h2><p className="lesson-summary">Manual Steps 1–4 update this shared lesson canvas. Teacher edits are saved locally in this browser.</p></div><span className="draft-badge">{draft.status}</span></div>
+        <div className="canvas-intro"><div><p className="eyebrow">Fictional lesson draft</p><h2 id="lesson-title">{draft.title}</h2><p className="lesson-summary">Manual Steps 1–5 update this shared lesson canvas. Teacher edits are saved locally in this browser.</p></div><span className="draft-badge">{draft.status}</span></div>
         <dl className="context-strip"><div><dt>Class</dt><dd>{classContext.classSize} fictional {classContext.stage} pupils</dd></div><div><dt>Duration</dt><dd>{classContext.durationMinutes} minutes</dd></div><div><dt>Focus</dt><dd>{classContext.learningFocus.join(', ')}</dd></div></dl>
         <section className="canvas-card" aria-labelledby="brief-title"><div className="card-kicker">Class brief</div><h3 id="brief-title">{classContext.subjectContext} · {classContext.teacherConfidence} confidence</h3><p>{classContext.goal || 'Add an optional fictional lesson goal.'}</p></section>
         <section className="canvas-card resource-plan" aria-labelledby="plan-title"><div className="card-kicker">Resource plan</div><h3 id="plan-title">Current tangible inventory</h3><dl className="inventory-grid">{resourceFields.map(({ key, label }) => <div key={key}><dt>{label}</dt><dd>{resources[key]}</dd></div>)}</dl><div className="grouping-status" role="status" aria-label="Grouping calculation status" aria-live="polite" aria-atomic="true"><dl className="grouping-summary"><div><dt>Required groups</dt><dd>{groupingPlan.recommendedGroups || 'None'}</dd></div><div><dt>Simultaneous capacity</dt><dd>{groupingPlan.simultaneousCapacity}</dd></div><div><dt>Pupils per group</dt><dd>{groupingPlan.pupilsPerGroup || 'None'}</dd></div><div><dt>Rotation</dt><dd>{groupingPlan.rotationRequired ? 'Required' : 'Not required'}</dd></div><div><dt>Tile-only groups</dt><dd>{resources.allowTileOnlyGroups ? 'Enabled' : 'Disabled'}</dd></div></dl>{groupingPlan.participationRoute && <p>{groupingPlan.participationRoute}</p>}</div>{groupingPlan.warnings.map((warning) => <p className="blocking-warning" role="alert" key={warning}>{warning}</p>)}</section>
@@ -92,10 +145,25 @@ function App() {
           <section className="canvas-card editable-card"><div className="card-kicker">Group and equipment plan</div><h3>Resource-aware participation</h3><p>{groupingPlan.participationRoute ? `${groupingPlan.recommendedGroups} required groups; ${groupingPlan.simultaneousCapacity} can use a station at once.${groupingPlan.rotationRequired ? ' A station rotation is included.' : ''}` : 'Resolve the resource warning before planning participation.'}</p></section>
           <MissionListCard label="Assessment evidence" items={mission.assessmentEvidence} minimumRows={1} maximumRows={5} maxLength={180} onChange={(index, value) => updateMissionList('assessmentEvidence', index, value)} onAdd={() => updateMission({ assessmentEvidence: [...mission.assessmentEvidence, ''] })} />
         </section>
+        <section className="adaptation-section" aria-labelledby="adaptation-section-title"><div className="section-heading"><div><p className="eyebrow">Manual learner decisions</p><h3 id="adaptation-section-title">Learner adaptation</h3></div><span>{adaptationComplete ? 'Complete' : 'Incomplete'}</span></div>
+          <AdaptationCard title="Access and support" selected={supportOptions.filter(({ value }) => adaptations.supports.includes(value)).map(({ label }) => label)} instructions={adaptations.supportInstructions} declined={adaptations.noAdditionalAdaptation} />
+          <AdaptationCard title="Extension challenge" selected={extensionOptions.filter(({ value }) => adaptations.extensions.includes(value)).map(({ label }) => label)} instructions={adaptations.extensionInstructions} declined={adaptations.noAdditionalAdaptation} />
+        </section>
       </section>
-      <aside className="panel readiness-panel"><div className="panel-heading"><p className="eyebrow">Review & readiness</p><h2>Teacher approval required</h2></div><div className="notice notice-warning"><strong>Human decision boundary</strong><p>Only the teacher can approve a lesson. Agent approval is not available.</p></div><div className="notice notice-info"><strong>Sample information only</strong><p>Do not enter pupil names, school details, diagnoses, attainment records or personal data.</p></div><div className="notice notice-info"><strong>Local draft</strong><p>One fictional lesson draft is saved in this browser. No credentials or browser-agent data are stored.</p></div></aside>
+      <aside className="panel readiness-panel"><div className="panel-heading"><p className="eyebrow">Review & readiness</p><h2>Teacher approval required</h2></div><div className="notice notice-warning"><strong>Human decision boundary</strong><p>Only the teacher can approve a lesson. Agent approval is not available.</p></div><div className="notice notice-info"><strong>Sample information only</strong><p>Do not enter pupil names, school details, diagnoses, attainment records or personal data.</p></div><div className="notice notice-info"><strong>Agent adaptation unavailable</strong><p>Step 5 currently records manual teacher decisions only. No agent proposal is created.</p></div><div className="notice notice-info"><strong>Local draft</strong><p>One fictional lesson draft is saved in this browser. No credentials or browser-agent data are stored.</p></div></aside>
     </main>
   </div>
+}
+
+function AdaptationInstructions({ kind, label, description, value, disabled, invalid, onChange }: { kind: 'support' | 'extension'; label: string; description: string; value: string; disabled: boolean; invalid: boolean; onChange: (value: string) => void }) {
+  const descriptionId = `${kind}-instructions-description`
+  const countId = `${kind}-instructions-count`
+  const errorId = `${kind}-instructions-error`
+  return <div className="instruction-field"><label htmlFor={`${kind}-instructions`}>{label}</label><p id={descriptionId}>{description}</p><textarea id={`${kind}-instructions`} maxLength={500} disabled={disabled} value={value} aria-invalid={invalid} aria-describedby={`${descriptionId} ${countId}${invalid ? ` ${errorId}` : ''}`} onChange={(event) => onChange(event.target.value)} /> <small id={countId}>{value.length}/500 characters</small>{invalid && <p id={errorId} role="alert">Enter no more than 500 characters.</p>}</div>
+}
+
+function AdaptationCard({ title, selected, instructions, declined }: { title: string; selected: string[]; instructions: string; declined: boolean }) {
+  return <section className="canvas-card adaptation-card"><div className="card-kicker">{title} · Manual draft</div><h4>{title}</h4>{declined ? <p>No additional adaptation selected for this demo.</p> : <><p>{selected.length > 0 ? selected.join(' · ') : `No ${title.toLowerCase()} options selected.`}</p><p>{instructions || 'Add class-level instructions to complete this adaptation decision.'}</p></>}</section>
 }
 
 function MissionTextCard({ label, title, value, maxLength, onChange }: { label: string; title: string; value: string; maxLength: number; onChange: (value: string) => void }) {

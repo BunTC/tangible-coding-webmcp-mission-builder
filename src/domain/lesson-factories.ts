@@ -116,7 +116,7 @@ export function createCleanDraft(now = new Date().toISOString()): LessonDraft {
       reflectAndImprove: '', assessmentEvidence: [],
     },
     adaptations: {
-      supports: [], extensions: [], supportInstructions: '', extensionInstructions: '', sectionsToUpdate: [],
+      supports: [], extensions: [], supportInstructions: '', extensionInstructions: '', sectionsToUpdate: [], noAdditionalAdaptation: false,
     },
     validation: { readiness: 'blocked', score: 0, checks: [], preparedOutputs: [] },
     pendingChanges: [],
