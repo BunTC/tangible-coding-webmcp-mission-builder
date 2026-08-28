@@ -1,8 +1,8 @@
 ---
 type: source-of-truth
 title: Tangible Coding Studio WebMCP Challenge
-version: 1.1
-date: 2026-08-27
+version: 1.2
+date: 2026-08-28
 status: build-candidate
 owner: Tangible Coding Ltd
 ---
@@ -169,9 +169,9 @@ Browser print views are sufficient. A production PDF service is not required.
 - Ian Cameron: curriculum and teacher-practice reviewer
 - New competition prototype work: owned by Tangible Coding Ltd
 - Public prototype code licence: MIT
-- Company-authorisation evidence: Ian Cameron's affirmative Email or WhatsApp reply, retained in the private project record
+- Company-authorisation evidence: Ian Cameron's affirmative WhatsApp reply dated 2026-08-28, retained privately by Bun Tang
 
-These project decisions are confirmed. Ian Cameron's written consent remains a publication and submission gate: until the affirmative reply is retained, Codex may build the authorised generic prototype but must not publish the company repository, release company material or make the final Devpost submission. The reply must cover Tangible Coding Ltd entering, Bun Tang acting as representative, Tangible Coding Ltd owning the new prototype work, and publication of the limited prototype code under MIT.
+Ian Cameron's written authorisation was received by WhatsApp on 2026-08-28. It confirms that Tangible Coding Ltd may enter the WebMCP Challenge, Bun Tang is authorised to represent the company and submit the entry, the Mission Builder prototype IP belongs to Tangible Coding Ltd, and the authorised limited prototype code may be published under MIT. The evidence is retained privately by Bun Tang and must not be copied into the repository. Company authorisation is no longer a publication or submission blocker. Entrant-jurisdiction eligibility remains a separate unresolved compliance check.
 
 ## Submission requirements
 

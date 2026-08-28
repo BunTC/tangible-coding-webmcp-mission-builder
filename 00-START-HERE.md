@@ -20,7 +20,7 @@ This folder is the complete starting inventory for the Codex project responsible
    - `docs/SUBMISSION-INVENTORY.md`
 6. Paste `prompts/CODEX-MASTER-PROMPT.md` into the first Codex task.
 7. Ask Codex to inspect the repository and report blockers before creating application code.
-8. Obtain and privately retain Ian Cameron's written authorisation before publishing company material or submitting the entry.
+8. Confirm the 2026-08-28 record that Ian Cameron's written WhatsApp authorisation is retained privately by Bun Tang; do not add the evidence to the repository.
 
 ## Authority order
 
@@ -59,7 +59,7 @@ The Codex project is ready when:
 - `AGENTS.md` is loaded;
 - all documents above are readable;
 - entrant, ownership, MIT licence, Vite, Zod and Vercel decisions are recorded;
-- Ian Cameron's written authorisation is retained before public release;
+- Ian Cameron's written WhatsApp authorisation dated 2026-08-28 is retained privately by Bun Tang;
 - the approved five-tool scope is unchanged;
 - local build, test and lint commands are defined;
 - GitHub and a deployment target are available;

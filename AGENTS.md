@@ -54,7 +54,7 @@ Do not create an approval tool. WebMCP tools must update visible structured page
 - Do not add a production database unless the Source of Truth changes.
 - Do not add dependencies without explaining why they are necessary.
 - Never commit secrets, credentials, school data or unlicensed assets.
-- Do not publish the company repository or make the final submission until Ian Cameron's affirmative Email or WhatsApp authorisation is retained privately.
+- Ian Cameron gave written WhatsApp authorisation on 2026-08-28 for Tangible Coding Ltd to enter, Bun Tang to act as representative, Tangible Coding Ltd to own the Mission Builder prototype IP, and the authorised limited prototype code to be published under MIT. The evidence is retained privately by Bun Tang and must not be committed.
 
 ## Verification commands
 

@@ -30,9 +30,9 @@ The approved future WebMCP surface is limited to the five tools named in `docs/S
 
 Authorised prototype code in this repository is provided under the [MIT License](LICENSE). The licence applies only to authorised repository contents. It does not grant rights to Tangible Coding Ltd trademarks, the wider commercial curriculum, proprietary lesson packs, supplier-owned materials or other company intellectual property unless expressly stated.
 
-## Private development and release gate
+## Company authorisation record
 
-This repository remains under private development. It must not be made public, deployed as the company release or submitted to Devpost until Ian Cameron's affirmative Email or WhatsApp authorisation has been received and retained in the private project record. That evidence must cover Tangible Coding Ltd entering, Bun Tang acting as representative, company ownership of the new prototype work and publication of the limited prototype code under MIT.
+Ian Cameron gave written WhatsApp authorisation on 2026-08-28 confirming that Tangible Coding Ltd may enter the WebMCP Challenge, Bun Tang may act as the authorised representative and submit the entry, the Mission Builder prototype IP belongs to Tangible Coding Ltd, and the authorised limited prototype code may be published under MIT. The evidence is retained privately by Bun Tang. Company authorisation is no longer a publication or submission blocker; entrant-jurisdiction eligibility remains a separate unresolved compliance check.
 
 Do not commit the private authorisation evidence to this repository.
 

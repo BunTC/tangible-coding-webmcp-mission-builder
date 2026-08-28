@@ -52,7 +52,7 @@ Setup checks:
 - [ ] Ask Codex to summarise the Source of Truth
 - [ ] Confirm it names exactly five WebMCP tools
 - [ ] Confirm it identifies human-only approval
-- [ ] Confirm it identifies Tangible Coding Ltd as entrant and IP owner, Bun Tang as representative, and Ian's written consent as the remaining release gate
+- [ ] Confirm it identifies Tangible Coding Ltd as entrant and IP owner, Bun Tang as representative, and Ian's 2026-08-28 written WhatsApp authorisation as completed
 
 ## Development stack
 
@@ -116,11 +116,11 @@ Required actions:
 
 ## Private authorisation record
 
-- [ ] Send Ian the approval request by Email or WhatsApp
-- [ ] Receive an unambiguous affirmative reply
-- [ ] Save a dated screenshot or exported copy outside the public repository
-- [ ] Record the evidence location privately
-- [ ] Do not publish the company repository or submit the entry until this evidence exists
+- [x] Ian received the competition terms from Bun Tang
+- [x] Ian gave an unambiguous affirmative WhatsApp reply on 2026-08-28
+- [x] Retain the dated evidence outside the public repository
+- [x] Evidence location recorded privately by Bun Tang
+- [x] Company authorisation recorded as complete; do not publish the private evidence
 
 ## Competition management
 

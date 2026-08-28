@@ -34,7 +34,7 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Decision: Tangible Coding Ltd
 - Owner: Bun Tang and Ian Cameron
 - Status: Confirmed
-- Effect: Use Tangible Coding Ltd as the entrant; retain Ian's written consent before public release or submission.
+- Effect: Use Tangible Coding Ltd as the entrant. Ian's written company authorisation was received on 2026-08-28.
 
 ## D-005 — Authorised representative
 
@@ -42,7 +42,7 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Decision: Bun Tang
 - Owner: Tangible Coding Ltd
 - Status: Confirmed
-- Effect: Bun Tang manages Devpost and the formal submission, subject to retained company authorisation.
+- Effect: Bun Tang manages Devpost and the formal submission under the written company authorisation received on 2026-08-28.
 
 ## D-006 — Prototype IP ownership
 
@@ -91,6 +91,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Owner: Bun Tang
 - Status: Confirmed
 - Effect: The reply is the release gate for company entry, Bun's authority, company ownership of new prototype work and publication of limited prototype code under MIT. Store it privately; do not commit it to the public repository.
+
+## D-012 — Company authorisation received
+
+- Date: 2026-08-28
+- Decision: Ian Cameron's written WhatsApp authorisation was received
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: Tangible Coding Ltd may enter the WebMCP Challenge; Bun Tang is authorised to represent the company and submit the entry; the Mission Builder prototype IP remains owned by Tangible Coding Ltd; and the authorised limited prototype code may be published under MIT. The evidence is retained privately by Bun Tang. The company-authorisation release gate is satisfied. Entrant-jurisdiction eligibility remains a separate unresolved compliance check.
 
 ## New decision template
 
