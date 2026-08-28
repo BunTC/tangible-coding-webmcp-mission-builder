@@ -148,7 +148,10 @@ describe('deterministic manual lesson validation', () => {
     expect(validateLesson({ ...draft, mission: { ...draft.mission, title: '' } }).readiness).toBe('blocked')
     const warningDraft: LessonDraft = { ...draft, classContext: { ...draft.classContext, teacherConfidence: 'beginner' }, adaptations: { ...draft.adaptations, supportInstructions: '' } }
     expect(validateLesson(warningDraft).readiness).not.toBe('ready')
-    const pending: LessonDraft = { ...draft, pendingChanges: [{ id: 'pending-1', source: 'webmcp-agent', changes: [], status: 'pending', createdAt: '2026-08-28T12:00:00.000Z' }] }
+    const pending: LessonDraft = { ...draft, pendingChanges: [{
+      changeSetId: 'pending-1', source: 'webmcp-agent', toolName: 'set_class_context', createdAt: '2026-08-28T12:00:00.000Z',
+      operations: [{ operationId: 'operation-1', section: 'class-context', before: draft.classContext, proposed: { ...draft.classContext, goal: 'Proposed goal' }, status: 'pending', validation: { valid: true, messages: [] } }],
+    }] }
     expect(resultFor(pending, 'VAL-13')?.severity).toBe('error')
     expect(validateLesson(pending).readiness).toBe('blocked')
   })

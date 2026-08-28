@@ -363,6 +363,25 @@ textarea {
 .adaptation-section .section-heading { grid-column: 1 / -1; margin-bottom: 0; }
 .adaptation-card h4 { font-size: 1.05rem; }
 
+.change-review { display: grid; gap: 1rem; margin-top: 2rem; }
+.change-review .section-heading { margin-bottom: 0; }
+.change-card { display: grid; gap: 0.8rem; padding: 1rem; border: 2px solid #8ac9d2; border-radius: 12px; background: #f3fbfc; }
+.change-card.change-stale { border-color: #d6a84f; background: var(--amber-100); }
+.change-card header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.change-card h4, .change-card h5 { margin: 0; }
+.change-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.change-values section { min-width: 0; padding: 0.75rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.change-values pre { overflow: auto; margin: 0.5rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 0.84rem; }
+.change-card textarea { min-height: 110px; padding: 0.7rem; border: 1px solid #8b9ba5; border-radius: 8px; font-family: ui-monospace, monospace; }
+.change-card textarea[aria-invalid='true'] { border-color: #a83c31; }
+.change-card [role='alert'] { color: #8d2f27; font-weight: 750; }
+.change-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.change-history { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.change-history ul { margin-bottom: 0; }
+.history-values { margin: 0.5rem 0 0.75rem; padding: 0.65rem; border-left: 3px solid #8ac9d2; background: #f7fafb; }
+.history-values p, .history-values pre { margin: 0.3rem 0 0.65rem; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 0.84rem; }
+.change-status { padding: 0.75rem; border-radius: 8px; background: #eef8fc; color: var(--blue-800); font-weight: 800; }
+
 .cycle-section {
   margin-top: 2rem;
 }
@@ -536,6 +555,8 @@ textarea {
   .adaptation-section {
     grid-template-columns: 1fr;
   }
+
+  .change-values { grid-template-columns: 1fr; }
 
   .section-heading > span {
     display: block;

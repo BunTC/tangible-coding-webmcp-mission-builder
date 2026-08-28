@@ -124,6 +124,7 @@ export function createCleanDraft(now = new Date().toISOString()): LessonDraft {
     },
     validation: { readiness: 'blocked', score: 0, checks: [], preparedOutputs: [], acknowledgedWarningIds: [] },
     pendingChanges: [],
+    changeHistory: [],
     activityLog: [],
     createdAt: now,
     updatedAt: now,

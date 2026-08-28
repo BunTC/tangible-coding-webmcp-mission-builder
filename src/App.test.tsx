@@ -2,8 +2,26 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 import { LessonStoreProvider } from './state/lesson-store'
+import { createGoldenPathDraft, lostStoryPathMission } from './domain/lesson-factories'
+import { createPendingChangeSet, getSectionValue } from './domain/lesson-change-control'
+import { LESSON_STORAGE_KEY, lessonReducer } from './state/lesson-state'
 
 const renderApp = () => render(<LessonStoreProvider><App /></LessonStoreProvider>)
+
+function seedStep7Proposal() {
+  const draft = { ...createGoldenPathDraft('2026-08-28T10:00:00.000Z'), title: lostStoryPathMission.title, mission: { ...lostStoryPathMission } }
+  const set = createPendingChangeSet(draft, 'build_tangible_mission', [{ section: 'learning-intention', before: getSectionValue(draft, 'learning-intention') as never, proposed: 'Proposed visible intention.' }], { changeSetId: 'ui-change-set', operationIds: ['ui-operation'], createdAt: '2026-08-28T12:00:00.000Z' })
+  window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify({ ...draft, status: 'needs-review', pendingChanges: [set] }))
+}
+
+function seedAcceptedThenTeacherEditedProposal() {
+  const draft = { ...createGoldenPathDraft('2026-08-28T10:00:00.000Z'), title: lostStoryPathMission.title, mission: { ...lostStoryPathMission } }
+  const set = createPendingChangeSet(draft, 'build_tangible_mission', [{ section: 'learning-intention', before: draft.mission.learningIntention, proposed: 'Historical proposed intention.' }], { changeSetId: 'attribution-set', operationIds: ['attribution-operation'], createdAt: '2026-08-28T12:00:00.000Z' })
+  const received = lessonReducer(draft, { type: 'receive-change-set', payload: set })
+  const accepted = lessonReducer(received, { type: 'resolve-change-operation', payload: { changeSetId: 'attribution-set', operationId: 'attribution-operation', decision: 'accept' } })
+  const teacherEdited = lessonReducer(accepted, { type: 'update-mission', payload: { ...accepted.mission, learningIntention: 'Current teacher-edited intention.' } })
+  window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(teacherEdited))
+}
 
 describe('Mission Builder foundation', () => {
   beforeEach(() => window.localStorage.clear())
@@ -498,5 +516,77 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByText('This checks only obvious email, labelled phone, international phone and labelled pupil or student name patterns. It is not comprehensive safeguarding detection.')).toBeInTheDocument()
     expect(screen.getByText('No WebMCP validation or agent fix is connected.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ask agent/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('Step 7 human change review', () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it('shows an accessible pending proposal without changing accepted content', () => {
+    seedStep7Proposal()
+    renderApp()
+    const review = screen.getByRole('region', { name: '7. Review agent changes' })
+    expect(within(review).getByText('build_tangible_mission')).toBeInTheDocument()
+    expect(within(review).getByText('Proposal ui-change-set · operation ui-operation · validation valid')).toBeInTheDocument()
+    expect(within(review).getAllByText(/Proposed visible intention/)).toHaveLength(2)
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue(lostStoryPathMission.learningIntention)
+    expect(within(review).getByRole('button', { name: 'Accept learning-intention' })).toBeEnabled()
+    expect(within(review).getByRole('button', { name: 'Edit and accept learning-intention' })).toBeEnabled()
+    expect(within(review).getByRole('button', { name: 'Reject learning-intention' })).toBeEnabled()
+    expect(within(review).getByText(/Teacher approval is not implemented/)).toBeInTheDocument()
+  })
+
+  it('accepts a section, shows its resolved outcome and remains draft', () => {
+    seedStep7Proposal()
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Accept learning-intention' }))
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue('Proposed visible intention.')
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('learning-intention: accepted')
+    expect(screen.getByLabelText('Lesson status')).toHaveTextContent('Teacher approval required')
+    expect(screen.getByText('No proposal operations require review.')).toBeInTheDocument()
+  })
+
+  it('supports edit-and-accept with linked JSON errors', () => {
+    seedStep7Proposal()
+    renderApp()
+    const editor = screen.getByLabelText('Teacher-edited accepted value (JSON)')
+    fireEvent.change(editor, { target: { value: 'not json' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit and accept learning-intention' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid JSON value')
+    expect(editor).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(editor, { target: { value: '42' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit and accept learning-intention' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid JSON value')
+    fireEvent.change(editor, { target: { value: '"Teacher-edited intention."' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit and accept learning-intention' }))
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue('Teacher-edited intention.')
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('teacher modified')
+  })
+
+  it('rejects without changing accepted lesson content', () => {
+    seedStep7Proposal()
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Reject learning-intention' }))
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue(lostStoryPathMission.learningIntention)
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('learning-intention: rejected')
+  })
+
+  it('distinguishes immutable accepted history from a later teacher-edited current value after reload', async () => {
+    seedAcceptedThenTeacherEditedProposal()
+    const first = renderApp()
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue('Current teacher-edited intention.')
+    const history = screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement
+    expect(history).toHaveTextContent('attribution-set · build_tangible_mission · accepted')
+    expect(history).toHaveTextContent('Historical proposed value')
+    expect(history).toHaveTextContent('Historical proposed intention.')
+    expect(history).toHaveTextContent('Teacher edited after accepting this proposal.')
+    expect(history).toHaveTextContent('Current teacher-edited intention.')
+    expect(history).not.toHaveTextContent('approved')
+    await waitFor(() => expect(window.localStorage.getItem(LESSON_STORAGE_KEY)).toContain('Current teacher-edited intention.'))
+    first.unmount()
+    renderApp()
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue('Current teacher-edited intention.')
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('Historical proposed intention.')
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('Teacher edited after accepting this proposal.')
   })
 })

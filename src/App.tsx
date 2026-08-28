@@ -1,7 +1,8 @@
 import { useState, type ChangeEvent } from 'react'
 import './App.css'
 import { lostStoryPathMission } from './domain/lesson-factories'
-import { classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
+import { changeOperationSchema, classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ChangeOperation, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
+import { deriveChangeSetStatus, getSectionAttribution, getSectionValue, structurallyEqual } from './domain/lesson-change-control'
 import { useLessonStore } from './state/lesson-store'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
@@ -120,7 +121,7 @@ function App() {
     <main className="workspace">
       <aside className="panel journey-panel">
         <div className="panel-heading"><p className="eyebrow">Journey</p><h2>Manual setup</h2></div>
-        <nav aria-label="Mission Builder journey"><ol className="journey-list">{journeySteps.map((step, index) => <li className={index < 6 ? 'current-step' : ''} key={step}><span>{index + 1}</span>{step}</li>)}</ol></nav>
+        <nav aria-label="Mission Builder journey"><ol className="journey-list">{journeySteps.map((step, index) => <li className={index < 7 ? 'current-step' : ''} key={step}><span>{index + 1}</span>{step}</li>)}</ol></nav>
         <section className="setup-controls" aria-labelledby="start-title"><h3 id="start-title">1. Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><button type="button" className="primary-button" onClick={resetDraft}>Start New Mission</button><button type="button" className="secondary-button" onClick={loadDemo}>Load P4 Demo</button></section>
         <form className="setup-controls" aria-labelledby="class-title">
           <h3 id="class-title">2. Class context</h3>
@@ -178,10 +179,61 @@ function App() {
           <AdaptationCard title="Access and support" selected={supportOptions.filter(({ value }) => adaptations.supports.includes(value)).map(({ label }) => label)} instructions={adaptations.supportInstructions} declined={adaptations.noAdditionalAdaptation} />
           <AdaptationCard title="Extension challenge" selected={extensionOptions.filter(({ value }) => adaptations.extensions.includes(value)).map(({ label }) => label)} instructions={adaptations.extensionInstructions} declined={adaptations.noAdditionalAdaptation} />
         </section>
+        <ChangeReview draft={draft} onResolve={(changeSetId, operationId, decision, acceptedValue) => dispatch({ type: 'resolve-change-operation', payload: { changeSetId, operationId, decision, acceptedValue } })} />
       </section>
       <ValidationPanel draft={draft} onAcknowledge={(id) => dispatch({ type: 'acknowledge-warning', payload: id })} />
     </main>
   </div>
+}
+
+function formatReviewValue(value: unknown) {
+  return JSON.stringify(value, null, 2)
+}
+
+function ChangeReview({ draft, onResolve }: { draft: LessonDraft; onResolve: (changeSetId: string, operationId: string, decision: 'accept' | 'edit-and-accept' | 'reject', acceptedValue?: unknown) => void }) {
+  const [edits, setEdits] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const activeSetOperations = draft.pendingChanges.flatMap((set) => set.operations.map((operation) => ({ set, operation })))
+  const pendingOperations = activeSetOperations.filter(({ operation }) => operation.status === 'pending')
+  const resolvedActiveOperations = activeSetOperations.filter(({ operation }) => operation.status !== 'pending')
+  const editAndAccept = (changeSetId: string, operation: ChangeOperation) => {
+    try {
+      const value = JSON.parse(edits[operation.operationId] ?? formatReviewValue(operation.proposed))
+      const candidate = changeOperationSchema.safeParse({ ...operation, acceptedValue: value, status: 'accepted', resolution: { outcome: 'accepted', decidedAt: '2000-01-01T00:00:00.000Z', teacherModified: true } })
+      if (!candidate.success) throw new Error('Invalid section value')
+      setErrors((current) => ({ ...current, [operation.operationId]: '' }))
+      onResolve(changeSetId, operation.operationId, 'edit-and-accept', value)
+    } catch {
+      setErrors((current) => ({ ...current, [operation.operationId]: 'Enter a valid JSON value for this section.' }))
+    }
+  }
+  return <section className="change-review" aria-labelledby="change-review-title">
+    <div className="section-heading"><div><p className="eyebrow">Human change control</p><h3 id="change-review-title">7. Review agent changes</h3></div><span>{pendingOperations.length} pending</span></div>
+    {pendingOperations.length === 0 ? <div className="canvas-card"><p>No pending agent changes. Step 7 proposals can arrive only through the transport-independent domain interface; WebMCP is not connected.</p></div> : pendingOperations.map(({ set, operation }) => {
+      const current = getSectionValue(draft, operation.section)
+      const stale = !structurallyEqual(current, operation.before)
+      const descriptionId = `${operation.operationId}-description`
+      const errorId = `${operation.operationId}-error`
+      return <article className={`change-card ${stale ? 'change-stale' : ''}`} key={operation.operationId} aria-labelledby={`${operation.operationId}-title`}>
+        <header><div><p className="card-kicker">{set.toolName}</p><h4 id={`${operation.operationId}-title`}>{operation.section}</h4></div><strong>{stale ? 'Conflict · will supersede' : operation.status}</strong></header>
+        <p id={descriptionId}>Proposal {set.changeSetId} · operation {operation.operationId} · validation {operation.validation.valid ? 'valid' : 'invalid'}</p>
+        {operation.validation.messages.length > 0 && <ul>{operation.validation.messages.map((message) => <li key={message}>{message}</li>)}</ul>}
+        <div className="change-values"><section><h5>Current accepted value</h5><pre>{formatReviewValue(current)}</pre></section><section><h5>Proposed value</h5><pre>{formatReviewValue(operation.proposed)}</pre></section></div>
+        <label htmlFor={`${operation.operationId}-edit`}>Teacher-edited accepted value (JSON)</label>
+        <textarea id={`${operation.operationId}-edit`} value={edits[operation.operationId] ?? formatReviewValue(operation.proposed)} aria-describedby={`${descriptionId}${errors[operation.operationId] ? ` ${errorId}` : ''}`} aria-invalid={Boolean(errors[operation.operationId])} onChange={(event) => setEdits((currentEdits) => ({ ...currentEdits, [operation.operationId]: event.target.value }))} />
+        {errors[operation.operationId] && <p id={errorId} role="alert">{errors[operation.operationId]}</p>}
+        <div className="change-actions"><button type="button" className="primary-button" onClick={() => onResolve(set.changeSetId, operation.operationId, 'accept')}>Accept {operation.section}</button><button type="button" className="secondary-button" onClick={() => editAndAccept(set.changeSetId, operation)}>Edit and accept {operation.section}</button><button type="button" className="secondary-button" onClick={() => onResolve(set.changeSetId, operation.operationId, 'reject')}>Reject {operation.section}</button></div>
+      </article>
+    })}
+    {resolvedActiveOperations.length > 0 && <section className="change-history" aria-labelledby="active-resolution-title"><h4 id="active-resolution-title">Resolved sections in active proposals</h4><ul>{resolvedActiveOperations.map(({ set, operation }) => <li key={operation.operationId}><strong>{set.changeSetId}</strong> · {operation.section}: {operation.status}{operation.resolution?.teacherModified ? ' · teacher modified' : ''}</li>)}</ul></section>}
+    {draft.changeHistory.length > 0 && <section className="change-history" aria-labelledby="change-history-title"><h4 id="change-history-title">Resolved proposal history</h4><ul>{[...draft.changeHistory].reverse().map((set) => <li key={set.changeSetId}><strong>{set.changeSetId}</strong> · {set.toolName} · {deriveChangeSetStatus(set)}<ul>{set.operations.map((operation) => {
+      const attribution = operation.status === 'accepted' ? getSectionAttribution(draft, operation.section) : undefined
+      const isCurrentAttribution = attribution?.operationId === operation.operationId
+      return <li key={operation.operationId}><span>{operation.section}: {operation.status}{operation.resolution?.teacherModified ? ' · teacher modified on acceptance' : ''} · decided {operation.resolution?.decidedAt}</span><div className="history-values"><strong>Historical proposed value</strong><pre>{formatReviewValue(operation.proposed)}</pre>{isCurrentAttribution && <><strong>Current section attribution</strong><p>{attribution.currentSource === 'teacher-edited' ? 'Teacher edited after accepting this proposal.' : `Accepted contribution from ${attribution.toolName}.`}</p><strong>Current accepted value</strong><pre>{formatReviewValue(attribution.currentValue)}</pre></>}</div></li>
+    })}</ul></li>)}</ul></section>}
+    <p className="change-status" role="status" aria-live="polite" aria-atomic="true">{pendingOperations.length > 0 ? `${pendingOperations.length} proposal operation${pendingOperations.length === 1 ? ' requires' : 's require'} teacher review.` : 'No proposal operations require review.'}</p>
+    <div className="notice notice-warning"><strong>Human-only approval remains separate</strong><p>Accepting a proposed section does not approve this lesson or make it ready. Teacher approval is not implemented.</p></div>
+  </section>
 }
 
 function AdaptationInstructions({ kind, label, description, value, disabled, invalid, onChange }: { kind: 'support' | 'extension'; label: string; description: string; value: string; disabled: boolean; invalid: boolean; onChange: (value: string) => void }) {

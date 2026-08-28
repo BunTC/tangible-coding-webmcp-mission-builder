@@ -1,6 +1,6 @@
 # Tangible Coding Studio: Mission Builder
 
-Mission Builder is a teacher-facing WebMCP Challenge prototype for designing one fictional P4 tangible coding lesson on a shared visual canvas. The current repository stage provides a manual class, resource, mission-building, learner-adaptation and deterministic validation workflow. WebMCP tools are not registered yet.
+Mission Builder is a teacher-facing WebMCP Challenge prototype for designing one fictional P4 tangible coding lesson on a shared visual canvas. The current repository stage provides a manual class, resource, mission-building, learner-adaptation, deterministic validation and transport-independent change-review workflow. WebMCP tools are not registered yet.
 
 ## Current foundation
 
@@ -17,11 +17,12 @@ The application currently provides:
 - inline editing and local persistence for structured mission sections;
 - manual learner-support and extension decisions with explicit decline;
 - explicit learning-cycle timing and manual deterministic readiness checks;
+- section-level pending change review with accept, edit-and-accept, reject and stale-proposal protection;
 - build, lint and smoke-test scripts.
 
 Assessment validation is completeness-only in this prototype slice; it does not map evidence to individual success criteria. Personal-data validation detects only limited obvious patterns and is not comprehensive safeguarding detection.
 
-It does not yet provide WebMCP tools, agent change sets, teacher approval, output printing or deployment configuration.
+It does not yet provide WebMCP transport or tool execution, teacher approval, output printing or deployment configuration. Step 7 proposal data can be supplied only through the transport-independent domain model or the documented local test fixture procedure; there is no production simulation control.
 
 ## Pre-existing Tangible Coding concept
 
