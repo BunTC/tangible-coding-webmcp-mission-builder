@@ -1,7 +1,7 @@
 ---
 type: source-of-truth
 title: Tangible Coding Studio WebMCP Challenge
-version: 1.2
+version: 1.3
 date: 2026-08-28
 status: build-candidate
 owner: Tangible Coding Ltd
@@ -61,6 +61,26 @@ Mission Builder exposes structured WebMCP tools inside a visible lesson-design i
 ## Golden-path prompt
 
 Create a 45-minute P4 storytelling mission for 24 pupils. We have three robots, nine tile sets, three activity mats and three instruction-card packs. Focus on debugging. Use reduced reading and visual instructions, then add a loop challenge for confident learners. Validate the lesson and prepare it for my review.
+
+## Resource station and grouping rule
+
+- Maximum group size is 8 pupils.
+- Each basic group station requires 3 tile sets and 1 instruction-card pack.
+- A robot-active station additionally requires 1 robot and 1 activity mat.
+- When tile-only groups are enabled, a basic station may operate without a robot or activity mat.
+- When tile-only groups are disabled, every simultaneous station requires both 1 robot and 1 activity mat.
+- Role cards support pupil roles but do not determine station capacity.
+
+```text
+requiredGroups = pupils <= 0 ? 0 : ceil(pupils / 8)
+baseStationCapacity = min(floor(tileSets / 3), instructionCardPacks)
+robotStationCapacity = min(robotCount, activityMatCount, baseStationCapacity)
+simultaneousCapacity = tileOnlyEnabled ? baseStationCapacity : robotStationCapacity
+rotationRequired = simultaneousCapacity > 0 and requiredGroups > simultaneousCapacity
+blocking = requiredGroups > 0 and simultaneousCapacity = 0
+```
+
+This rule supersedes the earlier ambiguous `max(robotCount, activityMatCount)` grouping rule.
 
 ## Nine-step journey
 

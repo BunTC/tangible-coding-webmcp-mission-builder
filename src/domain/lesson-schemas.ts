@@ -40,6 +40,7 @@ export const resourceInventorySchema = z.object({
 export const groupingPlanSchema = z.object({
   recommendedGroups: z.number().int().min(0),
   pupilsPerGroup: z.number().int().min(0),
+  simultaneousCapacity: z.number().int().min(0).default(0),
   rotationRequired: z.boolean(),
   participationRoute: z.string().max(500),
   warnings: z.array(z.string().max(280)),

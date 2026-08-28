@@ -21,7 +21,9 @@ export function restoreLessonDraft(storage: Pick<Storage, 'getItem'>): LessonDra
     const stored = storage.getItem(LESSON_STORAGE_KEY)
     if (!stored) return createCleanDraft()
     const parsed = lessonDraftSchema.safeParse(JSON.parse(stored))
-    return parsed.success ? parsed.data : createCleanDraft()
+    return parsed.success
+      ? { ...parsed.data, groupingPlan: calculateGrouping(parsed.data.classContext, parsed.data.resources) }
+      : createCleanDraft()
   } catch {
     return createCleanDraft()
   }

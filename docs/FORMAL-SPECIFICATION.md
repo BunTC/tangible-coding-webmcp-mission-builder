@@ -1,8 +1,8 @@
 ---
 title: "Tangible Coding Studio WebMCP Prototype — Formal Specification"
-version: "1.0"
+version: "1.1"
 status: "Build Candidate"
-date: 2026-08-27
+date: 2026-08-28
 owner: "Tangible Coding Ltd"
 product: "Tangible Coding Studio"
 prototype_name: "Mission Builder"
@@ -340,14 +340,18 @@ Show a live `Resource plan` summary:
 
 ### Grouping calculation
 
-For the demo:
+Maximum group size is eight pupils. A basic group station requires three tile sets and one instruction-card pack. A robot-active station additionally requires one robot and one activity mat. When tile-only groups are enabled, a basic station may operate without a robot or activity mat. When tile-only groups are disabled, every simultaneous station requires both one robot and one activity mat. Role cards support pupil roles but do not determine station capacity.
 
 ```text
-recommendedGroups = max(robotCount, activityMatCount)
-pupilsPerGroup = ceil(classSize / recommendedGroups)
+requiredGroups = pupils <= 0 ? 0 : ceil(pupils / 8)
+baseStationCapacity = min(floor(tileSets / 3), instructionCardPacks)
+robotStationCapacity = min(robotCount, activityMatCount, baseStationCapacity)
+simultaneousCapacity = tileOnlyEnabled ? baseStationCapacity : robotStationCapacity
+rotationRequired = simultaneousCapacity > 0 and requiredGroups > simultaneousCapacity
+blocking = requiredGroups > 0 and simultaneousCapacity = 0
 ```
 
-If tile-only groups are allowed, the planner may create additional planning stations, but every group must receive a defined participation route.
+The visible suggested group count is `requiredGroups`, and pupils per group is `ceil(pupils / requiredGroups)` when at least one group is required. Rotation provides the participation route when simultaneous capacity is positive but below the required group count. This formula supersedes the earlier ambiguous `max(robotCount, activityMatCount)` rule.
 
 ### WebMCP tool
 

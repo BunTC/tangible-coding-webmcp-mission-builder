@@ -100,6 +100,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Status: Confirmed
 - Effect: Tangible Coding Ltd may enter the WebMCP Challenge; Bun Tang is authorised to represent the company and submit the entry; the Mission Builder prototype IP remains owned by Tangible Coding Ltd; and the authorised limited prototype code may be published under MIT. The evidence is retained privately by Bun Tang. The company-authorisation release gate is satisfied. Entrant-jurisdiction eligibility remains a separate unresolved compliance check.
 
+## D-013 — Resource station and grouping capacity
+
+- Date: 2026-08-28
+- Decision: Use a maximum group size of eight pupils; require three tile sets and one instruction-card pack for each basic station; require one robot and one activity mat in addition for each robot-active station; allow basic stations to operate without robots or mats only when tile-only groups are enabled; and exclude role cards from station capacity.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: Required groups are `ceil(pupils / 8)`. Base station capacity is limited by complete bundles of three tile sets and one instruction-card pack. Robot station capacity is further limited by robots and activity mats. Tile-only mode uses base capacity; robot-only mode uses robot station capacity. Rotation is required only when positive simultaneous capacity is below required groups, and a lesson is blocked when pupils require groups but simultaneous capacity is zero. This supersedes the earlier ambiguous `max(robotCount, activityMatCount)` grouping rule.
+
 ## New decision template
 
 ```markdown

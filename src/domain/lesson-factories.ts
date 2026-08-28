@@ -37,20 +37,41 @@ export function calculateGrouping(
   classContext: ClassContext,
   resources: ResourceInventory,
 ): LessonDraft['groupingPlan'] {
-  const recommendedGroups = Math.max(resources.robots, resources.activityMats)
-  const pupilsPerGroup = recommendedGroups > 0
-    ? Math.ceil(classContext.classSize / recommendedGroups)
+  const requiredGroups = classContext.classSize <= 0
+    ? 0
+    : Math.ceil(classContext.classSize / 8)
+  const baseStationCapacity = Math.min(
+    Math.floor(resources.tileSets / 3),
+    resources.instructionCardPacks,
+  )
+  const robotStationCapacity = Math.min(
+    resources.robots,
+    resources.activityMats,
+    baseStationCapacity,
+  )
+  const simultaneousCapacity = resources.allowTileOnlyGroups
+    ? baseStationCapacity
+    : robotStationCapacity
+  const pupilsPerGroup = requiredGroups > 0
+    ? Math.ceil(classContext.classSize / requiredGroups)
     : 0
-  const warnings = recommendedGroups === 0
-    ? ['Select at least one robot or activity mat to calculate groups.']
-    : []
+  const rotationRequired = simultaneousCapacity > 0 && requiredGroups > simultaneousCapacity
+  const blocking = requiredGroups > 0 && simultaneousCapacity === 0
+  const warnings: string[] = []
+
+  if (blocking && resources.robots === 0 && !resources.allowTileOnlyGroups) {
+    warnings.push('Blocking: Add at least one robot or enable tile-only groups without a robot.')
+  } else if (blocking) {
+    warnings.push('Blocking: No usable group station is available. Each basic station needs 3 tile sets and 1 instruction-card pack.')
+  }
 
   return {
-    recommendedGroups,
+    recommendedGroups: requiredGroups,
     pupilsPerGroup,
-    rotationRequired: recommendedGroups > 0 && resources.robots < recommendedGroups,
-    participationRoute: recommendedGroups > 0
-      ? `${recommendedGroups} groups of up to ${pupilsPerGroup} pupils.`
+    simultaneousCapacity,
+    rotationRequired,
+    participationRoute: requiredGroups > 0 && !blocking
+      ? `${requiredGroups} groups of up to ${pupilsPerGroup} pupils.${rotationRequired ? ` ${simultaneousCapacity} groups operate at once; groups rotate through the available stations.` : ''}`
       : '',
     warnings,
   }
