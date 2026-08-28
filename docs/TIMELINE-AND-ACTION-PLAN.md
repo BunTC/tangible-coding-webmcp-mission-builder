@@ -29,6 +29,37 @@ Set by someone else, cannot move. Date · what · consequence of missing it.
 ## Schedule
 My own sequencing. Can move if something fixed demands it.
 
+## Implementation checkpoint · 2026-08-28
+
+Evidence commit:
+- 239fe39d0de505bcbefaae7781fa80eef8b43a3f
+
+Verified completed:
+- application foundation;
+- lesson domain state and persistence;
+- Manual Steps 1–3;
+- resource selection, station capacity and grouping;
+- safe class-size input editing;
+- Step 4 manual mission-building workflow;
+- separation of P4 Demo context from explicit mission content;
+- Step 5 manual learner-adaptation workflow;
+- build passed;
+- lint passed;
+- 60 automated tests passed;
+- manual UI tests completed through Step 5.
+
+Explicitly not completed:
+- application routes beyond the current shell;
+- WebMCP feature detection, tool registration or tool execution;
+- agent proposals and change control;
+- deterministic validation;
+- teacher approval workflow;
+- outputs and print stylesheet;
+- deployment;
+- public repository release;
+- entrant-jurisdiction eligibility;
+- Devpost submission.
+
 ### 2026-08-27 to 2026-08-27 · Scope freeze and ownership · creates one buildable competition definition
 - [x] Confirm the competition entry owner and authorised representative.
   - [x] Record Tangible Coding Ltd as entrant and Bun Tang as authorised representative.
