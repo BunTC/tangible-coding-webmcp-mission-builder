@@ -1,152 +1,58 @@
+import type { ChangeEvent } from 'react'
 import './App.css'
-import { goldenPath } from './domain/sample-context'
+import { durationMinutesSchema, primaryStageSchema, type ClassContext, type ResourceInventory } from './domain/lesson-schemas'
+import { useLessonStore } from './state/lesson-store'
 
-const journeySteps = [
-  'Start',
-  'Class context',
-  'Resources',
-  'Build mission',
-  'Adapt learners',
-  'Validate',
-  'Review changes',
-  'Teacher approval',
-  'Preview & print',
-]
-
-const learningCycle = [
-  ['Plan', 'Predict the story route and arrange a first sequence.'],
-  ['Build & Explain', 'Build with tangible tiles and explain the planned algorithm.'],
-  ['Test & Debug', 'Test the route, find the deliberate error and revise it.'],
-  ['Reflect & Improve', 'Compare the result with the plan and identify one improvement.'],
+const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
+const durations = [30, 45, 60, 90] as const
+const focuses: ClassContext['learningFocus'][number][] = ['sequencing', 'algorithms', 'loops', 'debugging', 'conditionals', 'collaboration']
+const resourceFields: Array<{ key: keyof Pick<ResourceInventory, 'robots' | 'tileSets' | 'activityMats' | 'instructionCardPacks'>; label: string; max: number }> = [
+  { key: 'robots', label: 'Robots', max: 12 }, { key: 'tileSets', label: 'Tile sets', max: 30 },
+  { key: 'activityMats', label: 'Activity mats', max: 12 }, { key: 'instructionCardPacks', label: 'Instruction-card packs', max: 12 },
 ]
 
 function App() {
-  return (
-    <div className="app-shell">
-      <header className="product-header">
-        <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">
-            TC
-          </span>
-          <div>
-            <p className="eyebrow">Tangible Coding Studio</p>
-            <h1>Mission Builder</h1>
-          </div>
-        </div>
+  const { draft, dispatch } = useLessonStore()
+  const { classContext, resources, groupingPlan } = draft
+  const updateClassContext = (patch: Partial<ClassContext>) => dispatch({ type: 'update-class-context', payload: { ...classContext, ...patch } })
+  const updateResource = (key: keyof ResourceInventory, value: number | boolean) => dispatch({ type: 'update-resources', payload: { ...resources, [key]: value } })
+  const handleFocus = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value as ClassContext['learningFocus'][number]
+    const next = event.target.checked ? [...classContext.learningFocus, value] : classContext.learningFocus.filter((focus) => focus !== value)
+    if (next.length > 0) updateClassContext({ learningFocus: next })
+  }
 
-        <div className="header-state" aria-label="Lesson status">
-          <span className="connection-state">Foundation preview · WebMCP not connected</span>
-          <strong>Teacher approval required</strong>
-        </div>
-      </header>
-
-      <main className="workspace">
-        <aside className="panel journey-panel">
-          <div className="panel-heading">
-            <p className="eyebrow">Journey</p>
-            <h2>Lesson workflow</h2>
-          </div>
-
-          <nav aria-label="Mission Builder journey">
-            <ol className="journey-list">
-              {journeySteps.map((step, index) => (
-                <li className={index === 0 ? 'current-step' : ''} key={step}>
-                  <span>{index + 1}</span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </nav>
-        </aside>
-
-        <section className="lesson-canvas" aria-labelledby="lesson-title">
-          <div className="canvas-intro">
-            <div>
-              <p className="eyebrow">Fictional P4 demonstration</p>
-              <h2 id="lesson-title">The Lost Story Path</h2>
-              <p className="lesson-summary">
-                A 45-minute storytelling mission in which pupils plan, test and debug a
-                tangible route.
-              </p>
-            </div>
-            <span className="draft-badge">Draft</span>
-          </div>
-
-          <dl className="context-strip">
-            <div>
-              <dt>Class</dt>
-              <dd>{goldenPath.classSize} fictional {goldenPath.stage} pupils</dd>
-            </div>
-            <div>
-              <dt>Focus</dt>
-              <dd>{goldenPath.learningFocus}</dd>
-            </div>
-            <div>
-              <dt>Context</dt>
-              <dd>{goldenPath.subject}</dd>
-            </div>
-          </dl>
-
-          <section className="canvas-card" aria-labelledby="intention-title">
-            <div className="card-kicker">Learning intention</div>
-            <h3 id="intention-title">Test an algorithm, identify an error and improve the instructions.</h3>
-            <p>
-              Reduced reading and visual instructions support access. A loop challenge
-              provides the extension.
-            </p>
-          </section>
-
-          <section className="cycle-section" aria-labelledby="cycle-title">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Tangible Learning Cycle</p>
-                <h3 id="cycle-title">Four-stage mission structure</h3>
-              </div>
-              <span>Placeholder content</span>
-            </div>
-
-            <div className="cycle-grid">
-              {learningCycle.map(([title, description], index) => (
-                <article className="cycle-card" key={title}>
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <h4>{title}</h4>
-                  <p>{description}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        </section>
-
-        <aside className="panel readiness-panel">
-          <div className="panel-heading">
-            <p className="eyebrow">Review & readiness</p>
-            <h2>Teacher approval required</h2>
-          </div>
-
-          <div className="notice notice-warning">
-            <strong>Human decision boundary</strong>
-            <p>Only the teacher can approve a lesson. Agent approval is not available.</p>
-          </div>
-
-          <section className="resource-card" aria-labelledby="resource-title">
-            <p className="eyebrow">Available equipment</p>
-            <h3 id="resource-title">Fictional class inventory</h3>
-            <ul>
-              <li><span>Robots</span><strong>{goldenPath.resources.robots}</strong></li>
-              <li><span>Tile sets</span><strong>{goldenPath.resources.tileSets}</strong></li>
-              <li><span>Activity mats</span><strong>{goldenPath.resources.activityMats}</strong></li>
-              <li><span>Instruction-card packs</span><strong>{goldenPath.resources.instructionCardPacks}</strong></li>
-            </ul>
-          </section>
-
-          <div className="notice notice-info">
-            <strong>Sample information only</strong>
-            <p>No pupil names, school details or personal data are used in this prototype.</p>
-          </div>
-        </aside>
-      </main>
-    </div>
-  )
+  return <div className="app-shell">
+    <header className="product-header">
+      <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">TC</span><div><p className="eyebrow">Tangible Coding Studio</p><h1>Mission Builder</h1></div></div>
+      <div className="header-state" aria-label="Lesson status"><span className="connection-state">Manual foundation · WebMCP not connected</span><strong>Teacher approval required</strong></div>
+    </header>
+    <main className="workspace">
+      <aside className="panel journey-panel">
+        <div className="panel-heading"><p className="eyebrow">Journey</p><h2>Manual setup</h2></div>
+        <nav aria-label="Mission Builder journey"><ol className="journey-list">{journeySteps.map((step, index) => <li className={index < 3 ? 'current-step' : ''} key={step}><span>{index + 1}</span>{step}</li>)}</ol></nav>
+        <section className="setup-controls" aria-labelledby="start-title"><h3 id="start-title">1. Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><button type="button" className="primary-button" onClick={() => dispatch({ type: 'reset-demo' })}>Start New Mission</button><button type="button" className="secondary-button" onClick={() => dispatch({ type: 'load-demo' })}>Load P4 Demo</button></section>
+        <form className="setup-controls" aria-labelledby="class-title">
+          <h3 id="class-title">2. Class context</h3>
+          <label>Primary stage<select value={classContext.stage} onChange={(event) => updateClassContext({ stage: primaryStageSchema.parse(event.target.value) })}>{primaryStageSchema.options.map((stage) => <option key={stage}>{stage}</option>)}</select></label>
+          <label>Class size<input type="number" min="1" max="40" value={classContext.classSize} onChange={(event) => updateClassContext({ classSize: Number(event.target.value) })} /></label>
+          <label>Duration<select value={classContext.durationMinutes} onChange={(event) => updateClassContext({ durationMinutes: durationMinutesSchema.parse(Number(event.target.value)) })}>{durations.map((duration) => <option key={duration} value={duration}>{duration} minutes</option>)}</select></label>
+          <fieldset><legend>Learning focus</legend>{focuses.map((focus) => <label className="check-label" key={focus}><input type="checkbox" value={focus} checked={classContext.learningFocus.includes(focus)} onChange={handleFocus} />{focus}</label>)}</fieldset>
+          <label>Subject context<select value={classContext.subjectContext} onChange={(event) => updateClassContext({ subjectContext: event.target.value as ClassContext['subjectContext'] })}><option value="computing">Computing</option><option value="literacy">Literacy</option><option value="maths">Maths</option><option value="STEM">STEM</option><option value="IDL">IDL</option></select></label>
+          <label>Teacher confidence<select value={classContext.teacherConfidence} onChange={(event) => updateClassContext({ teacherConfidence: event.target.value as ClassContext['teacherConfidence'] })}><option value="beginner">Beginner</option><option value="developing">Developing</option><option value="confident">Confident</option></select></label>
+          <label>Lesson goal<textarea maxLength={280} value={classContext.goal ?? ''} onChange={(event) => updateClassContext({ goal: event.target.value })} /></label>
+        </form>
+        <section className="setup-controls" aria-labelledby="resources-title"><h3 id="resources-title">3. Tangible resources</h3>{resourceFields.map(({ key, label, max }) => <div className="stepper" key={key}><span id={`${key}-label`}>{label}</span><button type="button" aria-label={`Decrease ${label}`} disabled={resources[key] === 0} onClick={() => updateResource(key, resources[key] - 1)}>−</button><output aria-labelledby={`${key}-label`}>{resources[key]}</output><button type="button" aria-label={`Increase ${label}`} disabled={resources[key] === max} onClick={() => updateResource(key, resources[key] + 1)}>+</button></div>)}</section>
+      </aside>
+      <section className="lesson-canvas" aria-labelledby="lesson-title">
+        <div className="canvas-intro"><div><p className="eyebrow">Fictional lesson draft</p><h2 id="lesson-title">{draft.title}</h2><p className="lesson-summary">Manual Steps 1–3 update this shared lesson canvas. Mission content is not built in this slice.</p></div><span className="draft-badge">{draft.status}</span></div>
+        <dl className="context-strip"><div><dt>Class</dt><dd>{classContext.classSize} fictional {classContext.stage} pupils</dd></div><div><dt>Duration</dt><dd>{classContext.durationMinutes} minutes</dd></div><div><dt>Focus</dt><dd>{classContext.learningFocus.join(', ')}</dd></div></dl>
+        <section className="canvas-card" aria-labelledby="brief-title"><div className="card-kicker">Class brief</div><h3 id="brief-title">{classContext.subjectContext} · {classContext.teacherConfidence} confidence</h3><p>{classContext.goal || 'Add an optional fictional lesson goal.'}</p></section>
+        <section className="canvas-card resource-plan" aria-labelledby="plan-title"><div className="card-kicker">Resource plan</div><h3 id="plan-title">Current tangible inventory</h3><dl className="inventory-grid">{resourceFields.map(({ key, label }) => <div key={key}><dt>{label}</dt><dd>{resources[key]}</dd></div>)}</dl><p>{groupingPlan.participationRoute || groupingPlan.warnings[0]}</p></section>
+      </section>
+      <aside className="panel readiness-panel"><div className="panel-heading"><p className="eyebrow">Review & readiness</p><h2>Teacher approval required</h2></div><div className="notice notice-warning"><strong>Human decision boundary</strong><p>Only the teacher can approve a lesson. Agent approval is not available.</p></div><div className="notice notice-info"><strong>Sample information only</strong><p>Do not enter pupil names, school details, diagnoses, attainment records or personal data.</p></div><div className="notice notice-info"><strong>Local draft</strong><p>One fictional lesson draft is saved in this browser. No credentials or browser-agent data are stored.</p></div></aside>
+    </main>
+  </div>
 }
 
 export default App
