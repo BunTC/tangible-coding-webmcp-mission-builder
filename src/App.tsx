@@ -1,6 +1,6 @@
-import type { ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import './App.css'
-import { durationMinutesSchema, primaryStageSchema, type ClassContext, type ResourceInventory } from './domain/lesson-schemas'
+import { classContextSchema, durationMinutesSchema, primaryStageSchema, type ClassContext, type ResourceInventory } from './domain/lesson-schemas'
 import { useLessonStore } from './state/lesson-store'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
@@ -15,8 +15,27 @@ const resourceFields: Array<{ key: keyof Pick<ResourceInventory, 'robots' | 'til
 function App() {
   const { draft, dispatch } = useLessonStore()
   const { classContext, resources, groupingPlan } = draft
+  const [classSizeInput, setClassSizeInput] = useState(String(classContext.classSize))
+  const classSizeResult = /^\d+$/.test(classSizeInput)
+    ? classContextSchema.shape.classSize.safeParse(Number(classSizeInput))
+    : { success: false as const }
   const updateClassContext = (patch: Partial<ClassContext>) => dispatch({ type: 'update-class-context', payload: { ...classContext, ...patch } })
   const updateResource = (key: keyof ResourceInventory, value: number | boolean) => dispatch({ type: 'update-resources', payload: { ...resources, [key]: value } })
+  const updateClassSizeInput = (value: string) => {
+    setClassSizeInput(value)
+    const result = /^\d+$/.test(value)
+      ? classContextSchema.shape.classSize.safeParse(Number(value))
+      : { success: false as const }
+    if (result.success) updateClassContext({ classSize: result.data })
+  }
+  const resetDraft = () => {
+    setClassSizeInput('24')
+    dispatch({ type: 'reset-demo' })
+  }
+  const loadDemo = () => {
+    setClassSizeInput('24')
+    dispatch({ type: 'load-demo' })
+  }
   const handleFocus = (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value as ClassContext['learningFocus'][number]
     const next = event.target.checked ? [...classContext.learningFocus, value] : classContext.learningFocus.filter((focus) => focus !== value)
@@ -32,11 +51,12 @@ function App() {
       <aside className="panel journey-panel">
         <div className="panel-heading"><p className="eyebrow">Journey</p><h2>Manual setup</h2></div>
         <nav aria-label="Mission Builder journey"><ol className="journey-list">{journeySteps.map((step, index) => <li className={index < 3 ? 'current-step' : ''} key={step}><span>{index + 1}</span>{step}</li>)}</ol></nav>
-        <section className="setup-controls" aria-labelledby="start-title"><h3 id="start-title">1. Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><button type="button" className="primary-button" onClick={() => dispatch({ type: 'reset-demo' })}>Start New Mission</button><button type="button" className="secondary-button" onClick={() => dispatch({ type: 'load-demo' })}>Load P4 Demo</button></section>
+        <section className="setup-controls" aria-labelledby="start-title"><h3 id="start-title">1. Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><button type="button" className="primary-button" onClick={resetDraft}>Start New Mission</button><button type="button" className="secondary-button" onClick={loadDemo}>Load P4 Demo</button></section>
         <form className="setup-controls" aria-labelledby="class-title">
           <h3 id="class-title">2. Class context</h3>
           <label>Primary stage<select value={classContext.stage} onChange={(event) => updateClassContext({ stage: primaryStageSchema.parse(event.target.value) })}>{primaryStageSchema.options.map((stage) => <option key={stage}>{stage}</option>)}</select></label>
-          <label>Class size<input type="number" min="1" max="40" value={classContext.classSize} onChange={(event) => updateClassContext({ classSize: Number(event.target.value) })} /></label>
+          <label>Class size<input type="number" min="1" max="40" value={classSizeInput} aria-invalid={!classSizeResult.success} aria-describedby={!classSizeResult.success ? 'class-size-error' : undefined} onChange={(event) => updateClassSizeInput(event.target.value)} /></label>
+          {!classSizeResult.success && <p id="class-size-error" role="alert">Enter a whole number from 1 to 40.</p>}
           <label>Duration<select value={classContext.durationMinutes} onChange={(event) => updateClassContext({ durationMinutes: durationMinutesSchema.parse(Number(event.target.value)) })}>{durations.map((duration) => <option key={duration} value={duration}>{duration} minutes</option>)}</select></label>
           <fieldset><legend>Learning focus</legend>{focuses.map((focus) => <label className="check-label" key={focus}><input type="checkbox" value={focus} checked={classContext.learningFocus.includes(focus)} onChange={handleFocus} />{focus}</label>)}</fieldset>
           <label>Subject context<select value={classContext.subjectContext} onChange={(event) => updateClassContext({ subjectContext: event.target.value as ClassContext['subjectContext'] })}><option value="computing">Computing</option><option value="literacy">Literacy</option><option value="maths">Maths</option><option value="STEM">STEM</option><option value="IDL">IDL</option></select></label>

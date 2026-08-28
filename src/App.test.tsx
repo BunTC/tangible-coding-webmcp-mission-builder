@@ -43,6 +43,48 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Blocking: No usable group station is available.')
   })
 
+  it.each([
+    ['a temporary empty value', ''],
+    ['non-numeric input', 'not-a-number'],
+    ['a below-minimum value', '0'],
+    ['an above-maximum value', '41'],
+  ])('keeps the last valid class size for %s', (_label, value) => {
+    renderApp()
+    const input = screen.getByLabelText('Class size')
+    fireEvent.change(input, { target: { value } })
+
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Enter a whole number from 1 to 40.')).toHaveAttribute('role', 'alert')
+    expect(screen.getByText('24 fictional P4 pupils')).toBeInTheDocument()
+  })
+
+  it('recovers from invalid text and recalculates grouping for a valid class size', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    const input = screen.getByLabelText('Class size')
+
+    fireEvent.change(input, { target: { value: '' } })
+    expect(screen.getByText('Enter a whole number from 1 to 40.')).toHaveAttribute('role', 'alert')
+    expect(screen.getByText('3 groups of up to 8 pupils.')).toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: '16' } })
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.queryByText('Enter a whole number from 1 to 40.')).not.toBeInTheDocument()
+    expect(screen.getByText('16 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getByText('2 groups of up to 8 pupils.')).toBeInTheDocument()
+  })
+
+  it('does not persist invalid temporary class-size text', async () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    fireEvent.change(screen.getByLabelText('Class size'), { target: { value: '41' } })
+
+    await waitFor(() => {
+      const persisted = JSON.parse(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1') ?? '{}')
+      expect(persisted.classContext.classSize).toBe(24)
+    })
+  })
+
   it('keeps pupil role cards within the 0 to 40 range', () => {
     renderApp()
     const increase = screen.getByRole('button', { name: 'Increase Pupil role cards' })
