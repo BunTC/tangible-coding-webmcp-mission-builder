@@ -1,4 +1,4 @@
-import type { ClassContext, LessonDraft, ResourceInventory } from './lesson-schemas'
+import type { ClassContext, LessonDraft, MissionContent, ResourceInventory } from './lesson-schemas'
 
 export const cleanClassContext: ClassContext = {
   stage: 'P4',
@@ -31,6 +31,28 @@ export const goldenPathResources: ResourceInventory = {
   instructionCardPacks: 3,
   roleCards: 24,
   allowTileOnlyGroups: true,
+}
+
+export const lostStoryPathMission: MissionContent = {
+  title: 'The Lost Story Path',
+  theme: 'Storytelling and debugging a mixed-up journey',
+  challengeLevel: 'core',
+  learningIntention: 'We are learning to test a story sequence, spot a mistake and improve the instructions.',
+  successCriteria: [
+    'I can arrange instructions in a clear story order.',
+    'I can test the route and identify where it goes wrong.',
+    'I can explain one change that fixes the route.',
+  ],
+  missionStory: 'The story character has lost the path through the tale. Build a tile route that visits the story places in order, then test it with a robot or a tile-only walkthrough. A mixed-up instruction is hiding in the route: find it, explain it and repair the story path.',
+  plan: 'In groups of up to eight, choose the story places, put them in order and agree the route the character should follow. Give each pupil a turn to suggest or check an instruction.',
+  buildAndExplain: 'Build the route with three tile sets at each station. One pupil points to each instruction while another explains what the character should do. Swap roles before testing.',
+  testAndDebug: 'Run the robot or trace the tile-only route one instruction at a time. Pause when the route no longer matches the story, name the faulty instruction, replace it and test again.',
+  reflectAndImprove: 'Show the repaired route. Each group explains the bug, the change they made and one way the new sequence improves the story journey.',
+  assessmentEvidence: [
+    'The group orders instructions to match the planned story.',
+    'Pupils identify the faulty instruction during testing.',
+    'Pupils explain how their change repairs the route.',
+  ],
 }
 
 export function calculateGrouping(
@@ -115,5 +137,10 @@ export function createGoldenPathDraft(now = new Date().toISOString()): LessonDra
     classContext,
     resources,
     groupingPlan: calculateGrouping(classContext, resources),
+    mission: {
+      ...lostStoryPathMission,
+      successCriteria: [...lostStoryPathMission.successCriteria],
+      assessmentEvidence: [...lostStoryPathMission.assessmentEvidence],
+    },
   }
 }

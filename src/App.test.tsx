@@ -43,6 +43,29 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Blocking: No usable group station is available.')
   })
 
+  it('builds the complete sample mission without replacing teacher context', () => {
+    renderApp()
+    fireEvent.change(screen.getByLabelText('Class size'), { target: { value: '16' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+
+    expect(screen.getByText('16 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mission title')).toHaveValue('The Lost Story Path')
+    expect((screen.getByLabelText('Test & Debug') as HTMLTextAreaElement).value).toContain('faulty instruction')
+    expect(screen.getByLabelText('Reflect & Improve')).not.toHaveValue('')
+    expect(screen.getByLabelText('Success criterion 3')).not.toHaveValue('')
+  })
+
+  it('persists an inline teacher mission edit after reload', async () => {
+    const firstRender = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.change(screen.getByLabelText('What pupils are learning'), { target: { value: 'We are learning to repair a sequence.' } })
+    await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('repair a sequence'))
+    firstRender.unmount()
+
+    renderApp()
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue('We are learning to repair a sequence.')
+  })
+
   it.each([
     ['a temporary empty value', ''],
     ['non-numeric input', 'not-a-number'],
