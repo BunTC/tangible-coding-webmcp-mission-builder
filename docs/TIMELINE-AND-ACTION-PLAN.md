@@ -471,3 +471,33 @@ Deliberately excluded, with the reason.
 - Supplier-owned RoBico code, images or assets — Tangible Coding Ltd should not publish material it does not own or have permission to use.
 - Independent in-app AI model integration — the compatible browser agent supplies structured tool arguments for the golden path, avoiding unnecessary API-key and deployment risk.
 - Autonomous lesson approval — contradicts the prototype's human-control principle and is intentionally prohibited.
+
+## Manual Step 6 validation checkpoint · 2026-08-28
+
+Evidence commit:
+- `0a44e7ec94c3761092598b7e94f87115e228a2db`
+
+Verified completed:
+- deterministic manual lesson validation;
+- VAL-01 through VAL-13 with stable unique IDs;
+- reusable pure validator;
+- explicit four-stage duration validation;
+- validation warnings and persistent acknowledgements;
+- relevant Steps 1–5 edits invalidate stale validation and acknowledgements;
+- ready means ready for human teacher review only;
+- no code path sets teacher approval;
+- `preparedOutputs` remains empty;
+- build passed;
+- lint passed;
+- 117 automated tests passed across five test files;
+- full Manual Step 6 UI test passed.
+
+Explicitly not completed:
+- WebMCP feature detection, tool registration or execution;
+- agent proposals and change control;
+- teacher approval workflow;
+- prepared outputs and print stylesheet;
+- deployment;
+- public repository release;
+- entrant-jurisdiction eligibility;
+- Devpost submission.
