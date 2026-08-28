@@ -501,3 +501,45 @@ Explicitly not completed:
 - public repository release;
 - entrant-jurisdiction eligibility;
 - Devpost submission.
+
+## Manual Step 7 change-control checkpoint · 2026-08-29
+
+Evidence commit:
+- `93135c4da83c1fc7dc7ac967253ffacec0f39e12` (`feat: add transport-independent change control`)
+
+This checkpoint implements local transport-independent change control only.
+
+Verified completed:
+- transport-independent proposal and operation schemas;
+- exact five approved tool identities;
+- authoritative 13-section catalogue and per-tool allowlists;
+- proposal receipt without direct accepted-content mutation;
+- accept, edit-and-accept, reject and supersede lifecycle;
+- atomic application and structural stale-proposal protection;
+- separate pending and resolved histories;
+- newest-20 resolved-history limit;
+- migration-safe persistence and reload;
+- deterministic Manual Step 6 validation reuse;
+- Step 7 accessible human review UI;
+- immutable proposal attribution after later teacher edits;
+- D-017 teacher-only `noAdditionalAdaptation` boundary;
+- `preparedOutputs` remains empty;
+- `approvedAt` remains unset;
+- build passed;
+- lint passed;
+- 170 automated tests passed across six test files;
+- full Manual Step 7 UI test passed;
+- targeted attribution UI retest passed.
+
+Explicitly not completed:
+- WebMCP feature detection;
+- WebMCP registration, descriptors or browser API integration;
+- real tool invocation or transport adapters;
+- agent/network execution;
+- automatic content acceptance;
+- teacher approval workflow;
+- output preparation or printing;
+- deployment;
+- public repository release;
+- entrant-jurisdiction eligibility;
+- Devpost submission.
