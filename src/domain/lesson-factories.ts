@@ -133,14 +133,8 @@ export function createGoldenPathDraft(now = new Date().toISOString()): LessonDra
 
   return {
     ...draft,
-    title: 'The Lost Story Path',
     classContext,
     resources,
     groupingPlan: calculateGrouping(classContext, resources),
-    mission: {
-      ...lostStoryPathMission,
-      successCriteria: [...lostStoryPathMission.successCriteria],
-      assessmentEvidence: [...lostStoryPathMission.assessmentEvidence],
-    },
   }
 }

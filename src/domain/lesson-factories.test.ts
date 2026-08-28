@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { calculateGrouping, createGoldenPathDraft, goldenPathClassContext, goldenPathResources } from './lesson-factories'
+import { calculateGrouping, goldenPathClassContext, goldenPathResources, lostStoryPathMission } from './lesson-factories'
 
 describe('fictional sample mission', () => {
   it('contains the complete four-stage Lost Story Path lesson', () => {
-    const draft = createGoldenPathDraft('2026-08-28T10:00:00.000Z')
-
-    expect(draft.mission.title).toBe('The Lost Story Path')
-    expect(draft.mission.successCriteria).toHaveLength(3)
-    expect(draft.mission.plan).not.toBe('')
-    expect(draft.mission.buildAndExplain).not.toBe('')
-    expect(draft.mission.testAndDebug).toContain('faulty instruction')
-    expect(draft.mission.reflectAndImprove).not.toBe('')
-    expect(draft.mission.assessmentEvidence).toHaveLength(3)
+    expect(lostStoryPathMission.title).toBe('The Lost Story Path')
+    expect(lostStoryPathMission.successCriteria).toHaveLength(3)
+    expect(lostStoryPathMission.plan).not.toBe('')
+    expect(lostStoryPathMission.buildAndExplain).not.toBe('')
+    expect(lostStoryPathMission.testAndDebug).toContain('faulty instruction')
+    expect(lostStoryPathMission.reflectAndImprove).not.toBe('')
+    expect(lostStoryPathMission.assessmentEvidence).toHaveLength(3)
   })
 })
 
