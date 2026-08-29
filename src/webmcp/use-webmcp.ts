@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { LessonCommandBoundary } from '../state/lesson-state'
 import { createSetClassContextHandler } from './set-class-context'
 import { createSelectTangibleResourcesHandler } from './select-tangible-resources'
+import { createBuildTangibleMissionHandler } from './build-tangible-mission'
 import { detectWebMcp, hasCompleteHandlers, registerCompleteWebMcpCatalogue, type WebMcpConnectionState, type WebMcpHandlers } from './webmcp-registration'
 
 export interface WebMcpStatus { state: WebMcpConnectionState; message: string }
@@ -26,6 +27,12 @@ export function createProductionWebMcpHandlers(commands: WebMcpLessonCommands): 
       now: () => new Date().toISOString(),
     }),
     select_tangible_resources: createSelectTangibleResourcesHandler({
+      getDraft: commands.getDraft,
+      receiveChangeSet: commands.receiveChangeSet,
+      createId: () => crypto.randomUUID(),
+      now: () => new Date().toISOString(),
+    }),
+    build_tangible_mission: createBuildTangibleMissionHandler({
       getDraft: commands.getDraft,
       receiveChangeSet: commands.receiveChangeSet,
       createId: () => crypto.randomUUID(),
