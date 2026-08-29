@@ -2,6 +2,7 @@ import { toolSectionAllowlists, type ApprovedToolName, type LessonSection } from
 import { selectTangibleResourcesJsonSchema } from './select-tangible-resources'
 import { buildTangibleMissionJsonSchema } from './build-tangible-mission'
 import { adaptForLearnersJsonSchema } from './adapt-for-learners'
+import { validateAndPrepareLessonJsonSchema } from './validate-and-prepare-lesson'
 
 const text = (description: string, maxLength: number) => ({ type: 'string', description, maxLength })
 const integer = (description: string, minimum: number, maximum?: number) => ({ type: 'integer', description, minimum, ...(maximum === undefined ? {} : { maximum }) })
@@ -21,8 +22,6 @@ const classContextInputSchema = {
   required: ['stage', 'classSize', 'durationMinutes', 'learningFocus', 'subjectContext', 'teacherConfidence'],
 } as const
 
-const validationInputSchema = { type: 'object', additionalProperties: false, properties: { runMode: enumString('Validation run mode.', ['validate', 'validate-and-prepare']) }, required: ['runMode'] } as const
-
 export interface WebMcpToolDefinition {
   name: ApprovedToolName
   title: string
@@ -38,7 +37,7 @@ export const WEBMCP_TOOL_CATALOGUE: readonly WebMcpToolDefinition[] = [
   { name: 'select_tangible_resources', title: 'Select tangible resources', description: 'Propose tangible resource inventory for teacher review.', inputSchema: selectTangibleResourcesJsonSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.select_tangible_resources, expectedOutputDescription: 'Proposal identity, resource section, normalized inventory and resource warnings.' },
   { name: 'build_tangible_mission', title: 'Build tangible mission', description: 'Propose structured mission sections for teacher review.', inputSchema: buildTangibleMissionJsonSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.build_tangible_mission, expectedOutputDescription: 'Proposal identity, affected mission sections and feasibility warnings.' },
   { name: 'adapt_for_learners', title: 'Adapt for learners', description: 'Propose named learner adaptations for teacher review.', inputSchema: adaptForLearnersJsonSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.adapt_for_learners, expectedOutputDescription: 'Proposal identity, affected sections and before/proposed values.' },
-  { name: 'validate_and_prepare_lesson', title: 'Validate lesson', description: 'Run deterministic validation and report readiness for teacher review.', inputSchema: validationInputSchema, annotations: { readOnlyHint: false, untrustedContentHint: false }, allowedSections: toolSectionAllowlists.validate_and_prepare_lesson, expectedOutputDescription: 'Deterministic checks, readiness and preparationImplemented false; no approval or outputs.' },
+  { name: 'validate_and_prepare_lesson', title: 'Validate lesson', description: 'Run deterministic validation and report readiness for teacher review.', inputSchema: validateAndPrepareLessonJsonSchema, annotations: { readOnlyHint: false, untrustedContentHint: false }, allowedSections: toolSectionAllowlists.validate_and_prepare_lesson, expectedOutputDescription: 'Deterministic checks, readiness and preparationImplemented false; no approval or outputs.' },
 ] as const
 
 export const WEBMCP_TOOL_NAMES = WEBMCP_TOOL_CATALOGUE.map(({ name }) => name)

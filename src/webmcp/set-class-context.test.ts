@@ -130,6 +130,7 @@ describe('set_class_context WebMCP handler', () => {
     const commands = createLessonCommandBoundary(initial, () => undefined)
     const interleaved = {
       getDraft: commands.getDraft,
+      runValidation: commands.runValidation,
       receiveChangeSet: (set: Parameters<typeof commands.receiveChangeSet>[0]) => {
         commands.dispatch({ type: 'update-class-context', payload: { ...commands.getDraft().classContext, classSize: 12 } })
         return commands.receiveChangeSet(set)
@@ -161,6 +162,7 @@ describe('set_class_context WebMCP handler', () => {
     let first = true
     const interleaved = {
       getDraft: commands.getDraft,
+      runValidation: commands.runValidation,
       receiveChangeSet: (set: Parameters<typeof commands.receiveChangeSet>[0]) => {
         if (first) {
           first = false

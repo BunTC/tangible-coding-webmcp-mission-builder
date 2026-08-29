@@ -34,8 +34,8 @@ const durationFields = {
 type DurationField = keyof typeof durationFields
 
 function App() {
-  const { draft, dispatch, getDraft, receiveChangeSet } = useLessonStore()
-  const webMcpCommands = useMemo(() => ({ getDraft, receiveChangeSet }), [getDraft, receiveChangeSet])
+  const { draft, dispatch, getDraft, receiveChangeSet, runValidation } = useLessonStore()
+  const webMcpCommands = useMemo(() => ({ getDraft, receiveChangeSet, runValidation }), [getDraft, receiveChangeSet, runValidation])
   const webMcpStatus = useWebMcp(webMcpCommands)
   const { classContext, resources, groupingPlan } = draft
   const { mission, adaptations } = draft

@@ -38,10 +38,15 @@ export type ProposalReceiptResult =
   | { ok: true; draft: LessonDraft }
   | { ok: false; code: 'stale-state' | 'invalid-proposal'; message: string }
 
+export type ValidationRunResult =
+  | { ok: true; draft: LessonDraft }
+  | { ok: false; code: 'stale-state' | 'aborted'; message: string }
+
 export interface LessonCommandBoundary {
   getDraft(): LessonDraft
   dispatch(action: LessonAction): LessonDraft
   receiveChangeSet(changeSet: ChangeSet): ProposalReceiptResult
+  runValidation(expectedDraft: LessonDraft, canPublish?: () => boolean): ValidationRunResult
 }
 
 export function createLessonCommandBoundary(initialDraft: LessonDraft, publish: (draft: LessonDraft) => void): LessonCommandBoundary {
@@ -70,6 +75,18 @@ export function createLessonCommandBoundary(initialDraft: LessonDraft, publish: 
             : 'The proposal could not be recorded because it was invalid.',
         }
       }
+    },
+    runValidation: (expectedDraft, canPublish = () => true) => {
+      if (current !== expectedDraft) {
+        return { ok: false, code: 'stale-state', message: 'The accepted lesson changed before validation could be recorded. Run validation again.' }
+      }
+      const next = lessonReducer(current, { type: 'run-validation' })
+      if (!canPublish()) {
+        return { ok: false, code: 'aborted', message: 'The tool call was cancelled before validation could be recorded.' }
+      }
+      current = next
+      publish(next)
+      return { ok: true, draft: next }
     },
   }
 }

@@ -4,6 +4,7 @@ import { createSetClassContextHandler } from './set-class-context'
 import { createSelectTangibleResourcesHandler } from './select-tangible-resources'
 import { createBuildTangibleMissionHandler } from './build-tangible-mission'
 import { createAdaptForLearnersHandler } from './adapt-for-learners'
+import { createValidateAndPrepareLessonHandler } from './validate-and-prepare-lesson'
 import { detectWebMcp, hasCompleteHandlers, registerCompleteWebMcpCatalogue, type WebMcpConnectionState, type WebMcpHandlers } from './webmcp-registration'
 
 export interface WebMcpStatus { state: WebMcpConnectionState; message: string }
@@ -17,7 +18,7 @@ const messages: Record<WebMcpConnectionState, string> = {
 }
 const malformedMessage = 'WebMCP was detected, but its registration surface is inaccessible or malformed. Manual Steps 1–7 remain available.'
 
-type WebMcpLessonCommands = Pick<LessonCommandBoundary, 'getDraft' | 'receiveChangeSet'>
+type WebMcpLessonCommands = Pick<LessonCommandBoundary, 'getDraft' | 'receiveChangeSet' | 'runValidation'>
 
 export function createProductionWebMcpHandlers(commands: WebMcpLessonCommands): WebMcpHandlers {
   return {
@@ -44,6 +45,10 @@ export function createProductionWebMcpHandlers(commands: WebMcpLessonCommands): 
       receiveChangeSet: commands.receiveChangeSet,
       createId: () => crypto.randomUUID(),
       now: () => new Date().toISOString(),
+    }),
+    validate_and_prepare_lesson: createValidateAndPrepareLessonHandler({
+      getDraft: commands.getDraft,
+      runValidation: commands.runValidation,
     }),
   }
 }

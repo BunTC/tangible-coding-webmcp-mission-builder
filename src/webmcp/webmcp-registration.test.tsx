@@ -45,13 +45,14 @@ describe('WebMCP feature detection and registration', () => {
     expect(detectWebMcp(inaccessible)).toEqual({ availability: 'malformed' })
   })
 
-  it('registers zero tools when production supplies only four complete handlers', async () => {
+  it('registers exactly five complete production handlers in canonical order', async () => {
     const fake = fakeContext()
     const production = createProductionWebMcpHandlers(commands())
-    expect(Object.keys(production)).toEqual(['set_class_context', 'select_tangible_resources', 'build_tangible_mission', 'adapt_for_learners'])
+    expect(Object.keys(production)).toEqual(WEBMCP_TOOL_NAMES)
     const result = await registerCompleteWebMcpCatalogue(fake.modelContext, production)
-    expect(result).toMatchObject({ state: 'incomplete', registeredNames: [] })
-    expect(fake.calls).toEqual([])
+    expect(result).toMatchObject({ state: 'connected', registeredNames: WEBMCP_TOOL_NAMES })
+    expect(fake.calls.slice(-WEBMCP_TOOL_NAMES.length)).toEqual(WEBMCP_TOOL_NAMES)
+    expect(fake.active).toEqual(new Set(WEBMCP_TOOL_NAMES))
   })
 
   it('registers all five atomically in deterministic order with no exposedTo', async () => {
@@ -61,7 +62,15 @@ describe('WebMCP feature detection and registration', () => {
     expect(result.registeredNames).toEqual(WEBMCP_TOOL_NAMES)
     expect(fake.calls).toEqual(WEBMCP_TOOL_NAMES)
     for (const [index, call] of vi.mocked(fake.modelContext.registerTool).mock.calls.entries()) {
-      expect(call[0]).toMatchObject({ name: WEBMCP_TOOL_NAMES[index], execute: handler })
+      const definition = WEBMCP_TOOL_CATALOGUE[index]
+      expect(call[0]).toEqual({
+        name: definition.name,
+        title: definition.title,
+        description: definition.description,
+        inputSchema: definition.inputSchema,
+        annotations: definition.annotations,
+        execute: handler,
+      })
       expect(call[0]).not.toHaveProperty('exposedTo')
       expect(call[1]?.signal).toBe(result.controller.signal)
     }
@@ -69,6 +78,14 @@ describe('WebMCP feature detection and registration', () => {
 
   it('aborts and reports zero registered names after registration rejection', async () => {
     const fake = fakeContext(3)
+    const result = await registerCompleteWebMcpCatalogue(fake.modelContext, completeHandlers)
+    expect(result).toMatchObject({ state: 'error', registeredNames: [] })
+    expect(result.controller.signal.aborted).toBe(true)
+    expect(fake.active.size).toBe(0)
+  })
+
+  it.each([1, 2, 3, 4, 5])('cleans up and never connects when registration %s rejects', async (rejectAt) => {
+    const fake = fakeContext(rejectAt)
     const result = await registerCompleteWebMcpCatalogue(fake.modelContext, completeHandlers)
     expect(result).toMatchObject({ state: 'error', registeredNames: [] })
     expect(result.controller.signal.aborted).toBe(true)
@@ -104,15 +121,15 @@ describe('WebMCP accessible status UI', () => {
     expect(screen.getByRole('status')).toHaveTextContent(message)
   })
 
-  it('shows supported-but-incomplete immediately and registers zero production tools', async () => {
+  it('registers the complete production catalogue and reports connected only afterward', async () => {
     const fake = fakeContext()
     Object.defineProperty(document, 'modelContext', { configurable: true, value: fake.modelContext })
     const lessonCommands = commands()
     const { result } = renderHook(() => useWebMcp(lessonCommands), { wrapper: StrictMode })
-    const initialStatus = result.current
-    expect(result.current.message).toBe('WebMCP available; integration incomplete. No tools are registered yet.')
-    await waitFor(() => expect(fake.calls).toEqual([]))
-    expect(result.current).toBe(initialStatus)
+    expect(result.current.message).toBe('WebMCP available; registering all five tools.')
+    await waitFor(() => expect(result.current.message).toBe('WebMCP connected with all five approved tools.'))
+    expect(fake.calls.slice(-WEBMCP_TOOL_NAMES.length)).toEqual(WEBMCP_TOOL_NAMES)
+    expect(fake.active).toEqual(new Set(WEBMCP_TOOL_NAMES))
     Reflect.deleteProperty(document, 'modelContext')
   })
 
@@ -120,8 +137,8 @@ describe('WebMCP accessible status UI', () => {
     Reflect.deleteProperty(document, 'modelContext')
     let productionHandler: WebMcpHandler | undefined
     function CaptureCommands() {
-      const { getDraft, receiveChangeSet } = useLessonStore()
-      productionHandler = createProductionWebMcpHandlers({ getDraft, receiveChangeSet }).set_class_context
+      const { getDraft, receiveChangeSet, runValidation } = useLessonStore()
+      productionHandler = createProductionWebMcpHandlers({ getDraft, receiveChangeSet, runValidation }).set_class_context
       return null
     }
     render(<LessonStoreProvider><App /><CaptureCommands /></LessonStoreProvider>)
