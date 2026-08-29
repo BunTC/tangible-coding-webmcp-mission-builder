@@ -160,6 +160,24 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Status: Confirmed
 - Effect: No proposal operation may directly set `noAdditionalAdaptation` to `true`. Accepting, editing-and-accepting, rejecting or superseding one adaptation proposal does not automatically accept or modify another section. Existing canonical normalization may clear `noAdditionalAdaptation` when accepted support or extension instructions are added so contradictory state cannot persist; that clearing is an invariant consequence of applying accepted content, not a second proposal operation. Rejecting or superseding a proposal does not change `noAdditionalAdaptation`, and teachers retain the existing Manual Step 5 control for explicitly selecting no additional adaptation.
 
+## D-018 — Pinned WebMCP transport contract
+
+- Date: 2026-08-29
+- Decision: Implement the later bounded WebMCP transport against specification commit `41d12f057167ccf5954dbcf49d99502cb6c84491`, using minimal local ambient TypeScript declarations for only the registration surface consumed by this application. Register exactly the five approved tools when the API is available, while preserving the complete manual application and an honest unavailable state when it is not.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect:
+  1. Use minimal local ambient TypeScript declarations pinned to specification commit `41d12f057167ccf5954dbcf49d99502cb6c84491`. Do not add `webmcp-types@0.1.5` or another dependency, and do not declare discovery or `executeTool` surfaces unless the application later consumes them.
+  2. Expected input-validation, authority, prerequisite, stale-state and precondition failures resolve as `{ ok: false, error: { code, message }, stateChanged: false }`, using a stable machine-readable code and safe message. Throw only for unexpected implementation faults, without exposing stack traces, internal paths or sensitive state.
+  3. Omit `exposedTo`. Registration uses the default same-origin or built-in-browser-agent boundary; cross-origin iframe agents are outside this competition slice.
+  4. When WebMCP is supported, register exactly `set_class_context`, `select_tangible_resources`, `build_tangible_mission`, `adapt_for_learners` and `validate_and_prepare_lesson`. Do not hide names based on lesson state. Handlers enforce prerequisites through structured expected errors. Unsupported environments retain the complete manual application and show an honest unavailable state.
+  5. Set `readOnlyHint: false` for all five tools. Set `untrustedContentHint: true` for the four proposal-producing tools and `untrustedContentHint: false` for `validate_and_prepare_lesson`, which returns deterministic local validation results. No annotation or tool claims approval authority.
+  6. `roleCards` is optional in the `select_tangible_resources` transport input. Omission preserves the current accepted value; a supplied value is validated with the existing runtime inventory schema. The handler does not silently generate, remove or replace accepted role cards.
+  7. For every cycle section named by `adapt_for_learners` in `sectionsToUpdate`—`plan`, `build-and-explain`, `test-and-debug` or `reflect-and-improve`—require exactly one matching section payload containing `{ content, durationMinutes }`. Reject missing, unmatched, duplicated or unauthorised payloads atomically. Learner-support and extension-challenge retain their authoritative instruction shapes, and `noAdditionalAdaptation` remains excluded under D-017.
+  8. `validate_and_prepare_lesson` accepts `validate` and `validate-and-prepare`. Because output preparation remains unimplemented, `validate-and-prepare` returns `preparationImplemented: false`; `preparedOutputs` always remains empty. Neither mode implies prepared files, accepted content or approval, and `ready` means ready for human teacher review only.
+  9. The testing baseline is Chrome 149 or later with the official WebMCP testing flag or origin trial, plus ChatGPT's desktop in-app browser. Later Chrome lifecycle improvements, including safer behaviour reported for Chrome 153, are enhancements rather than the minimum contract. The pinned specification governs where Chrome guidance and repository assumptions differ.
+- Implementation boundary: This decision authorises a later bounded WebMCP implementation. It does not itself add browser globals, feature detection, registration, descriptors or tool execution.
+
 ## New decision template
 
 ```markdown

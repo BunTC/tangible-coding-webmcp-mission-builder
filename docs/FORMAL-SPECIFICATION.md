@@ -688,6 +688,20 @@ Do not claim that the browser print view is a finished commercial curriculum pac
 
 ## 10. WebMCP tool specification
 
+### 10.0 Pinned transport contract
+
+The WebMCP transport is pinned to specification commit [`41d12f057167ccf5954dbcf49d99502cb6c84491`](https://github.com/webmachinelearning/webmcp/blob/41d12f057167ccf5954dbcf49d99502cb6c84491/index.bs). The dated source register, implementation-guidance classifications, competition evidence and unresolved external areas are recorded in [WebMCP official contract](WEBMCP-OFFICIAL-CONTRACT.md). D-018 governs the repository implementation.
+
+- Detect support with `"modelContext" in document`. Unsupported environments preserve the complete manual application and display an honest unavailable state. A supported API whose registration fails displays a distinct honest error state.
+- When supported, register exactly the five tools in sections 10.1–10.5. Tool availability does not vary with lesson state; handlers enforce prerequisites and authority at runtime.
+- Use one `AbortController` for each registration lifecycle, pass its signal to every registration and abort it during cleanup. This must remain safe under React Strict Mode mount, cleanup and remount.
+- Omit `exposedTo`; cross-origin iframe exposure is not supported. The deployment uses the default same-origin or built-in-browser-agent boundary.
+- Every descriptor supplies the existing runtime input schema and sets `readOnlyHint: false`. The four proposal-producing tools set `untrustedContentHint: true`; `validate_and_prepare_lesson` sets it to `false`.
+- Expected input-validation, authority, prerequisite, stale-state and precondition failures resolve as `{ "ok": false, "error": { "code": "stable-code", "message": "safe message" }, "stateChanged": false }`. Unexpected implementation faults may throw, but public error handling must not expose stack traces, internal paths or sensitive state.
+- The four content tools create pending, reviewable Step 7 proposals and leave accepted content unchanged until teacher acceptance. `validate_and_prepare_lesson` instead runs the Manual Step 6 pure deterministic validator directly; it creates no proposal and cannot accept or approve content.
+- Registration, execution and cancellation follow the pinned normative contract. Behaviour not defined by that revision—including portable invocation identity, active-invocation unregister races and later discovery APIs—is unresolved and must not be guessed.
+- Use minimal local ambient TypeScript declarations for only the registration surface consumed by the application. Do not add a WebMCP type dependency or declare discovery and `executeTool` surfaces that the application does not consume.
+
 ## 10.1 Tool: `set_class_context`
 
 ### Purpose
@@ -722,7 +736,7 @@ Return the proposed normalized context, validation messages and change-set ID.
 
 ### Side effect
 
-Update the Class Brief card and create pending changes for agent-originated values.
+Create a pending `class-context` change without mutating the accepted Class Brief. The accepted card changes only after teacher review and acceptance.
 
 ## 10.2 Tool: `select_tangible_resources`
 
@@ -747,9 +761,11 @@ Update the Class Brief card and create pending changes for agent-originated valu
 
 Return normalized inventory, suggested grouping, resource warnings and change-set ID.
 
+If `roleCards` is omitted, preserve its current accepted value. If supplied, validate it with the existing resource-inventory runtime schema. Do not silently generate, remove or replace accepted role cards.
+
 ### Side effect
 
-Update resource state and Resource Plan card.
+Create a pending `tangible-resources` change without mutating accepted resource state or the accepted Resource Plan. Accepted resources and derived grouping change only after teacher review and acceptance.
 
 ## 10.3 Tool: `build_tangible_mission`
 
@@ -800,7 +816,7 @@ Return mission version, affected section IDs, feasibility warnings and change-se
 
 ### Side effect
 
-Populate the lesson canvas as pending agent-proposed content.
+Create section-level pending mission proposals without populating or mutating accepted lesson-canvas content.
 
 ## 10.4 Tool: `adapt_for_learners`
 
@@ -835,12 +851,32 @@ A mission draft exists.
       "items": {
         "type": "string",
         "enum": ["plan", "build-and-explain", "test-and-debug", "reflect-and-improve", "learner-support", "extension-challenge"]
-      }
+      },
+      "uniqueItems": true
+    },
+    "cycleSections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": ["plan", "build-and-explain", "test-and-debug", "reflect-and-improve"]
+          },
+          "content": {"type": "string", "maxLength": 500},
+          "durationMinutes": {"type": "integer", "minimum": 1}
+        },
+        "required": ["section", "content", "durationMinutes"],
+        "additionalProperties": false
+      },
+      "uniqueItems": true
     }
   },
-  "required": ["supports", "extensions", "supportInstructions", "extensionInstructions", "sectionsToUpdate"]
+  "required": ["supports", "extensions", "supportInstructions", "extensionInstructions", "sectionsToUpdate", "cycleSections"]
 }
 ```
+
+For every cycle section named in `sectionsToUpdate`, `cycleSections` contains exactly one matching payload with `content` and positive-integer `durationMinutes`. No unrequested, duplicated or unauthorised cycle payload is permitted. Missing or unmatched payloads reject the complete invocation atomically. `learner-support` and `extension-challenge` use `supportInstructions` and `extensionInstructions`; they do not use cycle payloads.
 
 ### Output
 
@@ -848,7 +884,7 @@ Return before/after values, affected sections and change-set ID.
 
 ### Side effect
 
-Update only named sections and create a reviewable adaptation change set.
+Create reviewable proposals only for the named sections. Accepted adaptation and mission content remains unchanged until the teacher accepts an operation.
 
 `noAdditionalAdaptation` is excluded from agent-generated and seeded proposals. It remains controlled only by the teacher through Manual Step 5. A `learner-support` proposal contains only learner-support values, and an `extension-challenge` proposal contains only extension-challenge values. Applying accepted support or extension instructions may clear an existing explicit decline through invariant normalization, but rejecting or superseding a proposal leaves it unchanged.
 
@@ -873,13 +909,14 @@ Update only named sections and create a reviewable adaptation change set.
   "readiness": "blocked | warning | ready",
   "score": "number of passed checks",
   "checks": [],
-  "preparedOutputs": []
+  "preparedOutputs": [],
+  "preparationImplemented": false
 }
 ```
 
 ### Side effect
 
-Call the same pure deterministic validator as Manual Step 6 and update validation state directly. Validation results are derived state and do not become proposals. During this slice `preparedOutputs` remains empty: output preparation is not implemented. The tool must not accept content, mark a lesson approved or set `approvedAt`.
+Call the same pure deterministic validator as Manual Step 6 and update validation state directly. Validation results are derived state and do not become proposals. Both `validate` and `validate-and-prepare` keep `preparedOutputs` empty; `validate-and-prepare` returns `preparationImplemented: false` because output preparation is not implemented. Neither mode accepts content, prepares files, marks a lesson approved or sets `approvedAt`. `Ready` means ready for human teacher review only.
 
 ## 11. State model
 
