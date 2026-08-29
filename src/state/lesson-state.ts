@@ -1,4 +1,5 @@
 import { calculateGrouping, createCleanDraft, createGoldenPathDraft, lostStoryPathMission } from '../domain/lesson-factories'
+import { ZodError } from 'zod'
 import {
   adaptationPlanSchema,
   classContextSchema,
@@ -32,6 +33,46 @@ export type LessonAction =
   | { type: 'receive-change-set'; payload: ChangeSet }
   | { type: 'resolve-change-operation'; payload: { changeSetId: string; operationId: string; decision: 'accept' | 'edit-and-accept' | 'reject' | 'supersede'; acceptedValue?: unknown } }
   | { type: 'reset-demo' }
+
+export type ProposalReceiptResult =
+  | { ok: true; draft: LessonDraft }
+  | { ok: false; code: 'stale-state' | 'invalid-proposal'; message: string }
+
+export interface LessonCommandBoundary {
+  getDraft(): LessonDraft
+  dispatch(action: LessonAction): LessonDraft
+  receiveChangeSet(changeSet: ChangeSet): ProposalReceiptResult
+}
+
+export function createLessonCommandBoundary(initialDraft: LessonDraft, publish: (draft: LessonDraft) => void): LessonCommandBoundary {
+  let current = initialDraft
+  const dispatch = (action: LessonAction) => {
+    const next = lessonReducer(current, action)
+    current = next
+    publish(next)
+    return next
+  }
+  return {
+    getDraft: () => current,
+    dispatch,
+    receiveChangeSet: (changeSet) => {
+      try {
+        return { ok: true, draft: dispatch({ type: 'receive-change-set', payload: changeSet }) }
+      } catch (error) {
+        const stale = error instanceof Error && /before value|Duplicate/.test(error.message)
+        const invalid = error instanceof ZodError || (error instanceof Error && /Only pending operations|requires one injected operation ID|cannot propose/.test(error.message))
+        if (!stale && !invalid) throw error
+        return {
+          ok: false,
+          code: stale ? 'stale-state' : 'invalid-proposal',
+          message: stale
+            ? 'The accepted lesson changed before this proposal could be recorded. Try again with the current lesson.'
+            : 'The proposal could not be recorded because it was invalid.',
+        }
+      }
+    },
+  }
+}
 
 const emptyValidation = (): LessonDraft['validation'] => ({ readiness: 'blocked', score: 0, checks: [], preparedOutputs: [], acknowledgedWarningIds: [] })
 

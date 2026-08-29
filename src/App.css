@@ -120,6 +120,9 @@ textarea {
   font-size: 0.78rem;
 }
 
+.webmcp-connected { color: #9ce7e2; }
+.webmcp-error { color: #ffe5ad; }
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(250px, 290px) minmax(520px, 1fr) minmax(280px, 330px);

@@ -1,9 +1,11 @@
-import { useState, type ChangeEvent } from 'react'
+import { useMemo, useState, type ChangeEvent } from 'react'
 import './App.css'
 import { lostStoryPathMission } from './domain/lesson-factories'
 import { changeOperationSchema, classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ChangeOperation, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
 import { deriveChangeSetStatus, getSectionAttribution, getSectionValue, structurallyEqual } from './domain/lesson-change-control'
 import { useLessonStore } from './state/lesson-store'
+import { useWebMcp } from './webmcp/use-webmcp'
+import { WebMcpStatusIndicator } from './webmcp/webmcp-status'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
 const durations = [30, 45, 60, 90] as const
@@ -32,7 +34,9 @@ const durationFields = {
 type DurationField = keyof typeof durationFields
 
 function App() {
-  const { draft, dispatch } = useLessonStore()
+  const { draft, dispatch, getDraft, receiveChangeSet } = useLessonStore()
+  const webMcpCommands = useMemo(() => ({ getDraft, receiveChangeSet }), [getDraft, receiveChangeSet])
+  const webMcpStatus = useWebMcp(webMcpCommands)
   const { classContext, resources, groupingPlan } = draft
   const { mission, adaptations } = draft
   const [missionStart, setMissionStart] = useState<'sample' | 'blank'>('sample')
@@ -116,7 +120,7 @@ function App() {
   return <div className="app-shell">
     <header className="product-header">
       <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">TC</span><div><p className="eyebrow">Tangible Coding Studio</p><h1>Mission Builder</h1></div></div>
-      <div className="header-state" aria-label="Lesson status"><span className="connection-state">Manual foundation · WebMCP not connected</span><strong>Teacher approval required</strong></div>
+      <div className="header-state" aria-label="Lesson status"><WebMcpStatusIndicator status={webMcpStatus} /><strong>Teacher approval required</strong></div>
     </header>
     <main className="workspace">
       <aside className="panel journey-panel">
