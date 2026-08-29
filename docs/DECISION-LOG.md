@@ -178,6 +178,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
   9. The testing baseline is Chrome 149 or later with the official WebMCP testing flag or origin trial, plus ChatGPT's desktop in-app browser. Later Chrome lifecycle improvements, including safer behaviour reported for Chrome 153, are enhancements rather than the minimum contract. The pinned specification governs where Chrome guidance and repository assumptions differ.
 - Implementation boundary: This decision authorises a later bounded WebMCP implementation. It does not itself add browser globals, feature detection, registration, descriptors or tool execution.
 
+## D-019 — Backend-free portable proposal handoff
+
+- Date: 2026-08-29
+- Decision: Cross-browser proposal handoff uses a strictly versioned, teacher-controlled copy/paste JSON package containing only an unresolved agent proposal. The prototype remains browser-local and adds no server, account, shared database, encoded review URL or automatic synchronization.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: Each successful content-tool result includes the exact pending change set as an untrusted portable package. The package records its format and schema version, approved source tool, injected change-set and operation identities, ISO creation time, authorized named sections, structural `before` values and proposed values. Structural `before` values are the portable revision evidence; browser-specific draft IDs and timestamps are excluded because equivalent drafts in isolated browser contexts have different local identities. Import uses strict Zod validation, size and operation limits, tool authority, ID-collision and structural-freshness checks, then routes the proposal through the existing synchronous receipt boundary. Import never transfers accepted lesson state, validation, prepared outputs or approval and never accepts or approves content. Only the teacher may accept, edit-and-accept or reject imported operations in the existing review UI.
+
 ## New decision template
 
 ```markdown

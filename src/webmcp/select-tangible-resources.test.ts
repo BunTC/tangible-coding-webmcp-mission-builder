@@ -6,6 +6,7 @@ import { createLessonCommandBoundary } from '../state/lesson-state'
 import { createProductionWebMcpHandlers } from './use-webmcp'
 import { selectTangibleResourcesInputSchema, selectTangibleResourcesJsonSchema, createSelectTangibleResourcesHandler } from './select-tangible-resources'
 import { WEBMCP_TOOL_CATALOGUE } from './webmcp-catalogue'
+import { createProposalPackage, proposalPackageSchema } from '../domain/lesson-proposal-package'
 
 const input = { robots: 2, tileSets: 6, activityMats: 2, instructionCardPacks: 2, allowTileOnlyGroups: true }
 const signal = () => new AbortController().signal
@@ -74,7 +75,10 @@ describe('select_tangible_resources WebMCP handler', () => {
       section: 'tangible-resources', proposedInventory: { ...input, roleCards: original.resources.roleCards },
       roleCards: 'preserved', stateChanged: true,
     })
-    expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500)
+    expect(result).toHaveProperty('proposalPackage.operations.0.proposed', { ...input, roleCards: original.resources.roleCards })
+    expect(result.ok && proposalPackageSchema.safeParse(result.proposalPackage).success).toBe(true)
+    expect(result.ok && result.proposalPackage).toEqual(createProposalPackage(draft.pendingChanges[0]))
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(5000)
     expect(draft.classContext).toEqual(original.classContext)
     expect(draft.resources).toEqual(original.resources)
     expect(draft.groupingPlan).toEqual(original.groupingPlan)

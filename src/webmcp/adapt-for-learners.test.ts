@@ -6,6 +6,7 @@ import { createLessonCommandBoundary } from '../state/lesson-state'
 import { ADAPTATION_SECTION_ORDER, adaptForLearnersInputSchema, adaptForLearnersJsonSchema, createAdaptForLearnersHandler } from './adapt-for-learners'
 import { createProductionWebMcpHandlers } from './use-webmcp'
 import { WEBMCP_TOOL_CATALOGUE } from './webmcp-catalogue'
+import { createProposalPackage, proposalPackageSchema } from '../domain/lesson-proposal-package'
 
 const input = {
   supports: ['visual-instructions' as const], extensions: ['loop-challenge' as const],
@@ -143,9 +144,12 @@ describe('adapt_for_learners WebMCP handler', () => {
   it('creates one complete ordered proposal with internal unique identities and no accepted-state mutation', () => {
     const { handler, getDraft, original } = harness()
     const result = handler(input, { signal: signal() })
-    expect(result).toEqual({ ok: true, tool: 'adapt_for_learners', changeSetId: 'adapt-id-1', operationIds: Array.from({ length: 6 }, (_, index) => `adapt-id-${index + 2}`), sections: ADAPTATION_SECTION_ORDER, stateChanged: true })
-    expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500)
+    expect(result).toMatchObject({ ok: true, tool: 'adapt_for_learners', changeSetId: 'adapt-id-1', operationIds: Array.from({ length: 6 }, (_, index) => `adapt-id-${index + 2}`), sections: ADAPTATION_SECTION_ORDER, stateChanged: true })
+    expect(result).toHaveProperty('proposalPackage.operations')
+    expect(result.ok && proposalPackageSchema.safeParse(result.proposalPackage).success).toBe(true)
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(5000)
     const draft = getDraft()
+    expect(result.ok && result.proposalPackage).toEqual(createProposalPackage(draft.pendingChanges[0]))
     expect(draft.pendingChanges).toHaveLength(1)
     expect(draft.pendingChanges[0].operations).toHaveLength(6)
     expect(draft.pendingChanges[0].operations.map(({ operationId }) => operationId)).toEqual(Array.from({ length: 6 }, (_, index) => `adapt-id-${index + 2}`))

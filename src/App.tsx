@@ -6,6 +6,7 @@ import { deriveChangeSetStatus, getSectionAttribution, getSectionValue, structur
 import { useLessonStore } from './state/lesson-store'
 import { useWebMcp, type WebMcpStatus } from './webmcp/use-webmcp'
 import { WebMcpStatusIndicator } from './webmcp/webmcp-status'
+import { importProposalPackage, MAX_PROPOSAL_PACKAGE_CHARACTERS } from './domain/lesson-proposal-package'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
 const durations = [30, 45, 60, 90] as const
@@ -205,7 +206,7 @@ function App() {
           <AdaptationCard title="Access and support" selected={supportOptions.filter(({ value }) => adaptations.supports.includes(value)).map(({ label }) => label)} instructions={adaptations.supportInstructions} declined={adaptations.noAdditionalAdaptation} />
           <AdaptationCard title="Extension challenge" selected={extensionOptions.filter(({ value }) => adaptations.extensions.includes(value)).map(({ label }) => label)} instructions={adaptations.extensionInstructions} declined={adaptations.noAdditionalAdaptation} />
         </section>
-        <ChangeReview draft={draft} webMcpStatus={webMcpStatus} onResolve={(changeSetId, operationId, decision, acceptedValue) => dispatch({ type: 'resolve-change-operation', payload: { changeSetId, operationId, decision, acceptedValue } })} />
+        <ChangeReview draft={draft} webMcpStatus={webMcpStatus} onImport={(serialized) => importProposalPackage(serialized, getDraft(), receiveChangeSet)} onResolve={(changeSetId, operationId, decision, acceptedValue) => dispatch({ type: 'resolve-change-operation', payload: { changeSetId, operationId, decision, acceptedValue } })} />
       </section>
       <ValidationPanel draft={draft} webMcpStatus={webMcpStatus} onAcknowledge={(id) => dispatch({ type: 'acknowledge-warning', payload: id })} />
     </main>
@@ -216,9 +217,11 @@ function formatReviewValue(value: unknown) {
   return JSON.stringify(value, null, 2)
 }
 
-function ChangeReview({ draft, webMcpStatus, onResolve }: { draft: LessonDraft; webMcpStatus: WebMcpStatus; onResolve: (changeSetId: string, operationId: string, decision: 'accept' | 'edit-and-accept' | 'reject', acceptedValue?: unknown) => void }) {
+function ChangeReview({ draft, webMcpStatus, onImport, onResolve }: { draft: LessonDraft; webMcpStatus: WebMcpStatus; onImport: (serialized: string) => ReturnType<typeof importProposalPackage>; onResolve: (changeSetId: string, operationId: string, decision: 'accept' | 'edit-and-accept' | 'reject', acceptedValue?: unknown) => void }) {
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [packageText, setPackageText] = useState('')
+  const [importStatus, setImportStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
   const activeSetOperations = draft.pendingChanges.flatMap((set) => set.operations.map((operation) => ({ set, operation })))
   const pendingOperations = activeSetOperations.filter(({ operation }) => operation.status === 'pending')
   const resolvedActiveOperations = activeSetOperations.filter(({ operation }) => operation.status !== 'pending')
@@ -233,8 +236,23 @@ function ChangeReview({ draft, webMcpStatus, onResolve }: { draft: LessonDraft; 
       setErrors((current) => ({ ...current, [operation.operationId]: 'Enter a valid JSON value for this section.' }))
     }
   }
+  const importPackage = () => {
+    const result = onImport(packageText)
+    setImportStatus({ kind: result.ok ? 'success' : 'error', message: result.message })
+    if (result.ok) setPackageText('')
+  }
   return <section className="change-review" aria-labelledby="change-review-title">
     <div className="section-heading"><div><p className="eyebrow">Human change control</p><h3 id="change-review-title">7. Review agent changes</h3></div><span>{pendingOperations.length} pending</span></div>
+    <section className="proposal-import" aria-labelledby="proposal-import-title">
+      <h4 id="proposal-import-title">Import agent proposal</h4>
+      <p id="proposal-import-warning"><strong>Untrusted AI proposal.</strong> Import adds pending content for teacher review only. It never accepts or approves lesson content.</p>
+      <label htmlFor="proposal-package">Proposal package JSON</label>
+      <p id="proposal-package-guidance">Paste the proposal package returned by ChatGPT.</p>
+      <textarea id="proposal-package" value={packageText} aria-describedby={`proposal-import-warning proposal-package-guidance proposal-package-limit${importStatus ? ' proposal-import-status' : ''}`} aria-invalid={importStatus?.kind === 'error'} onChange={(event) => { setPackageText(event.target.value); setImportStatus(null) }} />
+      <small id="proposal-package-limit">Maximum {MAX_PROPOSAL_PACKAGE_CHARACTERS.toLocaleString()} characters.</small>
+      <button type="button" className="secondary-button" disabled={!packageText.trim()} onClick={importPackage}>Import proposal</button>
+      {importStatus && <p id="proposal-import-status" className={importStatus.kind === 'error' ? 'import-error' : 'import-success'} role="status" aria-live="polite" aria-atomic="true">{importStatus.message}</p>}
+    </section>
     {pendingOperations.length === 0 ? <div className="canvas-card"><p>{webMcpWorkflowGuidance(webMcpStatus, 'change-review')}</p></div> : pendingOperations.map(({ set, operation }) => {
       const current = getSectionValue(draft, operation.section)
       const stale = !structurallyEqual(current, operation.before)

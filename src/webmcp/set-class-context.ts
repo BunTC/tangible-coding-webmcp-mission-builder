@@ -2,10 +2,11 @@ import { classContextSchema, type ChangeSet, type LessonDraft } from '../domain/
 import { createPendingChangeSet, getSectionValue } from '../domain/lesson-change-control'
 import type { ProposalReceiptResult } from '../state/lesson-state'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
+import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
 
 export type ExpectedToolErrorCode = 'invalid-input' | 'invalid-proposal' | 'aborted' | 'stale-state' | 'prerequisite-failed'
 export type ToolFailure = { ok: false; error: { code: ExpectedToolErrorCode; message: string }; stateChanged: false }
-export type SetClassContextSuccess = { ok: true; changeSetId: string; operationId: string; section: 'class-context'; proposedContext: LessonDraft['classContext']; validationMessages: string[]; stateChanged: true }
+export type SetClassContextSuccess = { ok: true; changeSetId: string; operationId: string; section: 'class-context'; proposedContext: LessonDraft['classContext']; validationMessages: string[]; proposalPackage: ProposalPackage; stateChanged: true }
 
 export interface SetClassContextDependencies {
   getDraft(): LessonDraft
@@ -37,6 +38,6 @@ export function createSetClassContextHandler(dependencies: SetClassContextDepend
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
     const receipt = dependencies.receiveChangeSet(proposal)
     if (!receipt.ok) return failure(receipt.code, receipt.message)
-    return { ok: true, changeSetId, operationId, section: 'class-context', proposedContext: parsed.data, validationMessages: [], stateChanged: true }
+    return { ok: true, changeSetId, operationId, section: 'class-context', proposedContext: parsed.data, validationMessages: [], proposalPackage: createProposalPackage(proposal), stateChanged: true }
   }
 }

@@ -4,6 +4,7 @@ import { classContextSchema, resourceInventorySchema, type ChangeSet, type Lesso
 import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
+import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
 
 export const selectTangibleResourcesInputSchema = resourceInventorySchema
   .omit({ roleCards: true })
@@ -33,6 +34,7 @@ export type SelectTangibleResourcesSuccess = {
   roleCards: 'provided' | 'preserved'
   suggestedGrouping: LessonDraft['groupingPlan']
   resourceWarnings: string[]
+  proposalPackage: ProposalPackage
   stateChanged: true
 }
 
@@ -80,6 +82,7 @@ export function createSelectTangibleResourcesHandler(dependencies: SelectTangibl
       roleCards: parsed.data.roleCards === undefined ? 'preserved' : 'provided',
       suggestedGrouping,
       resourceWarnings: suggestedGrouping.warnings,
+      proposalPackage: createProposalPackage(proposal),
       stateChanged: true,
     }
   }

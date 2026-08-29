@@ -5,6 +5,7 @@ import { LessonStoreProvider } from './state/lesson-store'
 import { createGoldenPathDraft, lostStoryPathMission } from './domain/lesson-factories'
 import { createPendingChangeSet, getSectionValue } from './domain/lesson-change-control'
 import { LESSON_STORAGE_KEY, lessonReducer } from './state/lesson-state'
+import { createProposalPackage } from './domain/lesson-proposal-package'
 
 const renderApp = () => render(<LessonStoreProvider><App /></LessonStoreProvider>)
 
@@ -556,6 +557,61 @@ describe('Mission Builder foundation', () => {
 
 describe('Step 7 human change review', () => {
   beforeEach(() => window.localStorage.clear())
+
+  it('provides persistent accessible guidance while empty import is disabled', () => {
+    renderApp()
+    const field = screen.getByLabelText('Proposal package JSON')
+    const guidance = screen.getByText('Paste the proposal package returned by ChatGPT.')
+    expect(field).toHaveValue('')
+    expect(field).toHaveAttribute('aria-describedby', expect.stringContaining(guidance.id))
+    expect(screen.getByRole('button', { name: 'Import proposal' })).toBeDisabled()
+    expect(field).not.toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('imports an untrusted portable proposal for review without accepting it', () => {
+    const draft = createGoldenPathDraft('2026-08-29T10:00:00.000Z')
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    const set = createPendingChangeSet(draft, 'set_class_context', [{ section: 'class-context', before: draft.classContext, proposed: { ...draft.classContext, classSize: 19 } }], { changeSetId: 'import-ui-set', operationIds: ['import-ui-operation'], createdAt: '2026-08-29T12:00:00.000Z' })
+    renderApp()
+    expect(screen.getByText(/Untrusted AI proposal/)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Proposal package JSON'), { target: { value: JSON.stringify(createProposalPackage(set)) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
+    expect(screen.getByText(/Imported proposal import-ui-set for teacher review/)).toBeInTheDocument()
+    expect(screen.getByText('1 proposal operation requires teacher review.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Class size')).toHaveValue(24)
+    expect(screen.getByRole('button', { name: 'Accept class-context' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Reject class-context' })).toBeEnabled()
+    expect(screen.getByLabelText('Lesson status')).toHaveTextContent('Teacher approval required')
+    fireEvent.click(screen.getByRole('button', { name: 'Reject class-context' }))
+    expect(screen.getByLabelText('Class size')).toHaveValue(24)
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('class-context: rejected')
+  })
+
+  it('shows a linked safe error for an invalid portable package', () => {
+    renderApp()
+    const field = screen.getByLabelText('Proposal package JSON')
+    fireEvent.change(field, { target: { value: '{invalid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
+    expect(screen.getByText('Paste a complete valid JSON proposal package.')).toBeInTheDocument()
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('No proposal operations require review.')).toBeInTheDocument()
+  })
+
+  it('renders hostile proposal strings as inert review text', () => {
+    const draft = createGoldenPathDraft('2026-08-29T10:00:00.000Z')
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    const hostile = '<img src=x onerror="globalThis.__proposalExecuted=true"><script>globalThis.__proposalExecuted=true</script> javascript:alert(1) onclick="alert(1)"'
+    const set = createPendingChangeSet(draft, 'build_tangible_mission', [{ section: 'learning-intention', before: draft.mission.learningIntention, proposed: hostile }], { changeSetId: 'hostile-ui-set', operationIds: ['hostile-ui-operation'], createdAt: '2026-08-29T12:00:00.000Z' })
+    renderApp()
+    fireEvent.change(screen.getByLabelText('Proposal package JSON'), { target: { value: JSON.stringify(createProposalPackage(set)) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
+    expect(screen.getAllByText((content) => content.includes('<img src=x onerror=') && content.includes('<script>'))).not.toHaveLength(0)
+    expect(document.querySelector('.change-review script')).toBeNull()
+    expect(document.querySelector('.change-review img')).toBeNull()
+    expect(within(screen.getByRole('region', { name: '7. Review agent changes' })).queryByRole('link')).not.toBeInTheDocument()
+    expect((globalThis as typeof globalThis & { __proposalExecuted?: boolean }).__proposalExecuted).toBeUndefined()
+    expect(screen.getByLabelText('What pupils are learning')).toHaveValue('')
+  })
 
   it('shows an accessible pending proposal without changing accepted content', () => {
     seedStep7Proposal()

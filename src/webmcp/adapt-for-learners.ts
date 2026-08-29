@@ -4,6 +4,7 @@ import { adaptationPlanSchema, missionContentSchema, type ChangeSet, type Lesson
 import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
+import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
 
 const cycleSections = ['plan', 'build-and-explain', 'test-and-debug', 'reflect-and-improve'] as const
 export const ADAPTATION_SECTION_ORDER = [...cycleSections, 'learner-support', 'extension-challenge'] as const satisfies readonly LessonSection[]
@@ -50,6 +51,7 @@ export type AdaptForLearnersSuccess = {
   changeSetId: string
   operationIds: string[]
   sections: LessonSection[]
+  proposalPackage: ProposalPackage
   stateChanged: true
 }
 
@@ -95,6 +97,6 @@ export function createAdaptForLearnersHandler(dependencies: AdaptForLearnersDepe
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
     const receipt = dependencies.receiveChangeSet(proposal)
     if (!receipt.ok) return failure(receipt.code, receipt.message)
-    return { ok: true, tool: 'adapt_for_learners', changeSetId, operationIds, sections: operations.map(({ section }) => section), stateChanged: true }
+    return { ok: true, tool: 'adapt_for_learners', changeSetId, operationIds, sections: operations.map(({ section }) => section), proposalPackage: createProposalPackage(proposal), stateChanged: true }
   }
 }

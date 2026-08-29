@@ -16,6 +16,8 @@ When WebMCP is supported, registration is guarded and all-or-none: the applicati
 
 The first four tools create pending, section-scoped teacher-review proposals. Tool calls do not directly mutate accepted lesson content, and proposals are never accepted automatically. The teacher may accept, edit-and-accept or reject each applicable operation through the visible change-review interface.
 
+Successful calls to those four tools also return a strictly versioned `proposalPackage`. This JSON object contains only the untrusted pending proposal and structural `before` values needed for freshness checking. A teacher can copy it from an isolated agent browser and paste it into **Import agent proposal** in Step 7 in their normal browser. Import validates the package and creates a pending proposal only; it never imports an authoritative lesson, accepts content or grants approval.
+
 `validate_and_prepare_lesson` calls the same deterministic validator used by Manual Step 6 and creates no proposal. It supports `validate` and `validate-and-prepare` modes. Actual output preparation is intentionally not implemented: `preparationImplemented` is `false` and `preparedOutputs` is always `[]`. Validation can mark a lesson ready for human teacher review, but no WebMCP tool can approve it.
 
 Teacher approval, output generation, printing and deployment are not implemented in the current application. Manual Steps 1–7 remain available without WebMCP.
@@ -82,6 +84,8 @@ The fictional lesson draft is stored in browser `localStorage`, which is scoped 
 - Vercel preview and production URLs maintain separate stored drafts;
 - changing the hostname, scheme or port starts separate origin-local state;
 - there is no server synchronization or account-based recovery.
+
+Different browser applications and profiles have separate storage even on the same URL. Portable proposal packages provide an explicit teacher-controlled copy/paste bridge for pending proposals only. They do not synchronize drafts or move accepted lesson content.
 
 ## Privacy and security boundaries
 

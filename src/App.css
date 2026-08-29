@@ -384,6 +384,13 @@ textarea {
 .history-values { margin: 0.5rem 0 0.75rem; padding: 0.65rem; border-left: 3px solid #8ac9d2; background: #f7fafb; }
 .history-values p, .history-values pre { margin: 0.3rem 0 0.65rem; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 0.84rem; }
 .change-status { padding: 0.75rem; border-radius: 8px; background: #eef8fc; color: var(--blue-800); font-weight: 800; }
+.proposal-import { display: grid; gap: 0.65rem; padding: 1rem; border: 1px solid #d6a84f; border-radius: 12px; background: var(--amber-100); }
+.proposal-import textarea { width: 100%; min-height: 150px; padding: 0.7rem; border: 1px solid #8b9ba5; border-radius: 8px; font-family: ui-monospace, monospace; resize: vertical; }
+.proposal-import textarea[aria-invalid='true'] { border-color: #a83c31; }
+.proposal-import small { color: var(--muted); }
+.proposal-import .secondary-button { justify-self: start; }
+.import-error { color: #8d2f27; font-weight: 750; }
+.import-success { color: #246441; font-weight: 750; }
 
 .cycle-section {
   margin-top: 2rem;

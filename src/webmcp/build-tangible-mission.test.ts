@@ -6,6 +6,7 @@ import { createLessonCommandBoundary } from '../state/lesson-state'
 import { BUILD_MISSION_SECTION_ORDER, buildTangibleMissionInputSchema, buildTangibleMissionJsonSchema, createBuildTangibleMissionHandler } from './build-tangible-mission'
 import { createProductionWebMcpHandlers } from './use-webmcp'
 import { WEBMCP_TOOL_CATALOGUE } from './webmcp-catalogue'
+import { createProposalPackage, proposalPackageSchema } from '../domain/lesson-proposal-package'
 
 const input = { ...lostStoryPathMission, challengeLevel: 'core' as const }
 const signal = () => new AbortController().signal
@@ -96,12 +97,15 @@ describe('build_tangible_mission WebMCP handler', () => {
     const { handler, getDraft, original } = harness()
     const result = handler(input, { signal: signal() })
     const draft = getDraft()
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true, tool: 'build_tangible_mission', changeSetId: 'mission-id-1',
       operationIds: Array.from({ length: 9 }, (_, index) => `mission-id-${index + 2}`), sections: BUILD_MISSION_SECTION_ORDER,
       missionVersion: { title: input.title, challengeLevel: input.challengeLevel }, feasibilityWarnings: original.groupingPlan.warnings, stateChanged: true,
     })
-    expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500)
+    expect(result).toHaveProperty('proposalPackage.operations')
+    expect(result.ok && proposalPackageSchema.safeParse(result.proposalPackage).success).toBe(true)
+    expect(result.ok && result.proposalPackage).toEqual(createProposalPackage(draft.pendingChanges[0]))
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(15000)
     expect(draft.pendingChanges).toHaveLength(1)
     expect(draft.pendingChanges[0].toolName).toBe('build_tangible_mission')
     expect(draft.pendingChanges[0].operations.map(({ section }) => section)).toEqual(BUILD_MISSION_SECTION_ORDER)

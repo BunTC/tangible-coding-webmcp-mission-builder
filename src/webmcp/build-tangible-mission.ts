@@ -4,6 +4,7 @@ import { classContextSchema, resourceInventorySchema, type ChangeSet, type Lesso
 import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
+import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
 
 const challengeLevelSchema = z.enum(['introductory', 'core', 'stretch'])
 const positiveMinutes = z.number().int().positive()
@@ -60,6 +61,7 @@ export type BuildTangibleMissionSuccess = {
   sections: typeof BUILD_MISSION_SECTION_ORDER
   missionVersion: { title: string; challengeLevel: MissionInput['challengeLevel'] }
   feasibilityWarnings: string[]
+  proposalPackage: ProposalPackage
   stateChanged: true
 }
 
@@ -118,6 +120,7 @@ export function createBuildTangibleMissionHandler(dependencies: BuildTangibleMis
       sections: BUILD_MISSION_SECTION_ORDER,
       missionVersion: { title: parsed.data.title, challengeLevel: parsed.data.challengeLevel },
       feasibilityWarnings: [...draft.groupingPlan.warnings],
+      proposalPackage: createProposalPackage(proposal),
       stateChanged: true,
     }
   }

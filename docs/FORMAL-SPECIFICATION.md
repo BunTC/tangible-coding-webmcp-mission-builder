@@ -1031,6 +1031,30 @@ The implementation uses Zod discriminated unions so `before`, `proposed` and any
 15. WebMCP transport remains deferred: this decision adds no browser globals, feature detection, registration syntax, descriptors or tool execution.
 16. `noAdditionalAdaptation` is teacher-only Manual Step 5 state. It is not a named proposal section and cannot be set to `true` by an agent-generated or seeded proposal. `learner-support` and `extension-challenge` operations remain independent. Applying accepted support or extension instructions may clear the explicit-decline state only as invariant normalization; rejecting or superseding an operation does not change it.
 
+## 13.1 Portable proposal handoff
+
+D-019 defines the bounded cross-browser handoff for the four proposal-producing tools. Each successful tool result includes one `proposalPackage` object representing exactly the pending change set created by that invocation:
+
+```ts
+interface ProposalPackageV1 {
+  format: "tangible-coding-agent-proposal";
+  schemaVersion: 1;
+  sourceTool: "set_class_context" | "select_tangible_resources" | "build_tangible_mission" | "adapt_for_learners";
+  changeSetId: string;
+  createdAt: string;
+  operations: Array<{
+    operationId: string;
+    section: LessonSectionId;
+    before: unknown;
+    proposed: unknown;
+  }>;
+}
+```
+
+The package is untrusted pending-proposal transport, not synchronization and not an authoritative lesson import. It contains between one and nine unique operations and is limited to 50,000 JSON characters. Its strict schema rejects unknown fields, resolved state, accepted values, approval data, validation state, prepared outputs, complete drafts, invalid ISO timestamps, duplicate identities, duplicate sections, invalid section values and unauthorized tool/section combinations. The recorded section-specific `before` values are the minimum portable revision evidence and must structurally match the receiving browser's current accepted sections. Browser-local draft IDs and revision timestamps are not portable identity because independently initialized equivalent drafts have different local values.
+
+The teacher pastes the JSON into the visible Step 7 import control. Parsing uses `JSON.parse` only and never evaluates content. A valid package is routed through the existing synchronous `receiveChangeSet` boundary, creates exactly one pending proposal and leaves accepted content unchanged. Stale packages, ID collisions and re-imports fail safely. Import cannot accept, approve, validate or prepare a lesson. The existing teacher controls remain the only way to accept, edit-and-accept or reject an imported operation. Browser `localStorage` remains authoritative within each context outside this explicit copy/paste transfer; there is no backend, account, encoded URL or automatic synchronization.
+
 ## 14. Validation rules for the competition build
 
 | ID | Rule | Severity |

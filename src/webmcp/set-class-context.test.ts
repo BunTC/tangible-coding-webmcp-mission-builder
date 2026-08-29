@@ -5,6 +5,7 @@ import type { LessonDraft } from '../domain/lesson-schemas'
 import { createLessonCommandBoundary } from '../state/lesson-state'
 import { createSetClassContextHandler } from './set-class-context'
 import { createProductionWebMcpHandlers } from './use-webmcp'
+import { createProposalPackage, proposalPackageSchema } from '../domain/lesson-proposal-package'
 
 const input = { stage: 'P4', classSize: 24, durationMinutes: 45, learningFocus: ['debugging'], subjectContext: 'literacy', teacherConfidence: 'beginner', goal: 'Debug a fictional story path.' }
 const signal = () => new AbortController().signal
@@ -41,7 +42,10 @@ describe('set_class_context WebMCP handler', () => {
     const { handler, getDraft, original } = harness()
     const result = handler(input, { signal: signal() })
     const draft = getDraft()
-    expect(result).toEqual({ ok: true, changeSetId: 'transport-id-1', operationId: 'transport-id-2', section: 'class-context', proposedContext: input, validationMessages: [], stateChanged: true })
+    expect(result).toMatchObject({ ok: true, changeSetId: 'transport-id-1', operationId: 'transport-id-2', section: 'class-context', proposedContext: input, validationMessages: [], stateChanged: true })
+    expect(result).toHaveProperty('proposalPackage.operations.0.proposed', input)
+    expect(result.ok && proposalPackageSchema.safeParse(result.proposalPackage).success).toBe(true)
+    expect(result.ok && result.proposalPackage).toEqual(createProposalPackage(draft.pendingChanges[0]))
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500)
     expect(draft.classContext).toEqual(original.classContext)
     expect(draft.resources).toEqual(original.resources)
