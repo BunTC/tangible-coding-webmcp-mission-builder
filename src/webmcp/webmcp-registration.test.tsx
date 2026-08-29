@@ -45,10 +45,10 @@ describe('WebMCP feature detection and registration', () => {
     expect(detectWebMcp(inaccessible)).toEqual({ availability: 'malformed' })
   })
 
-  it('registers zero tools when production supplies only three complete handlers', async () => {
+  it('registers zero tools when production supplies only four complete handlers', async () => {
     const fake = fakeContext()
     const production = createProductionWebMcpHandlers(commands())
-    expect(Object.keys(production)).toEqual(['set_class_context', 'select_tangible_resources', 'build_tangible_mission'])
+    expect(Object.keys(production)).toEqual(['set_class_context', 'select_tangible_resources', 'build_tangible_mission', 'adapt_for_learners'])
     const result = await registerCompleteWebMcpCatalogue(fake.modelContext, production)
     expect(result).toMatchObject({ state: 'incomplete', registeredNames: [] })
     expect(fake.calls).toEqual([])

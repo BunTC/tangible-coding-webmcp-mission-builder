@@ -3,6 +3,7 @@ import type { LessonCommandBoundary } from '../state/lesson-state'
 import { createSetClassContextHandler } from './set-class-context'
 import { createSelectTangibleResourcesHandler } from './select-tangible-resources'
 import { createBuildTangibleMissionHandler } from './build-tangible-mission'
+import { createAdaptForLearnersHandler } from './adapt-for-learners'
 import { detectWebMcp, hasCompleteHandlers, registerCompleteWebMcpCatalogue, type WebMcpConnectionState, type WebMcpHandlers } from './webmcp-registration'
 
 export interface WebMcpStatus { state: WebMcpConnectionState; message: string }
@@ -33,6 +34,12 @@ export function createProductionWebMcpHandlers(commands: WebMcpLessonCommands): 
       now: () => new Date().toISOString(),
     }),
     build_tangible_mission: createBuildTangibleMissionHandler({
+      getDraft: commands.getDraft,
+      receiveChangeSet: commands.receiveChangeSet,
+      createId: () => crypto.randomUUID(),
+      now: () => new Date().toISOString(),
+    }),
+    adapt_for_learners: createAdaptForLearnersHandler({
       getDraft: commands.getDraft,
       receiveChangeSet: commands.receiveChangeSet,
       createId: () => crypto.randomUUID(),
