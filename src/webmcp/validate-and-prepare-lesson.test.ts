@@ -35,6 +35,22 @@ function harness(initial = lessonDraft()) {
 const signal = () => new AbortController().signal
 
 describe('validate_and_prepare_lesson WebMCP handler', () => {
+  it.each(['omitted context', 'empty context', 'live signal'] as const)('completes production validation exactly once with %s', (mode) => {
+    const initial = lessonDraft()
+    let current = initial
+    let publications = 0
+    const commands = createLessonCommandBoundary(initial, (next) => { current = next; publications += 1 })
+    const production = createProductionWebMcpHandlers(commands).validate_and_prepare_lesson
+    const result = mode === 'omitted context'
+      ? production?.({ runMode: 'validate' })
+      : production?.({ runMode: 'validate' }, mode === 'empty context' ? {} : { signal: signal() })
+    expect(result).toMatchObject({ readiness: expect.any(String), preparedOutputs: [], preparationImplemented: false })
+    expect(publications).toBe(1)
+    expect(current.pendingChanges).toEqual([])
+    expect(current.approvedAt).toBeUndefined()
+    expect(current.validation.preparedOutputs).toEqual([])
+  })
+
   it('shares the exact canonical descriptor schema and accepts only the two run modes', () => {
     const descriptor = WEBMCP_TOOL_CATALOGUE.find(({ name }) => name === 'validate_and_prepare_lesson')
     expect(descriptor?.inputSchema).toBe(validateAndPrepareLessonJsonSchema)

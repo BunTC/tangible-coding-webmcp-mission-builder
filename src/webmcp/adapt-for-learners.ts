@@ -3,6 +3,7 @@ import { createPendingChangeSet, getSectionValue, type ProposedOperation } from 
 import { adaptationPlanSchema, missionContentSchema, type ChangeSet, type LessonDraft, type LessonSection } from '../domain/lesson-schemas'
 import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
+import { isWebMcpInvocationAborted } from './webmcp-execution'
 
 const cycleSections = ['plan', 'build-and-explain', 'test-and-debug', 'reflect-and-improve'] as const
 export const ADAPTATION_SECTION_ORDER = [...cycleSections, 'learner-support', 'extension-challenge'] as const satisfies readonly LessonSection[]
@@ -74,8 +75,8 @@ function proposedOperations(draft: LessonDraft, input: AdaptationInput): Propose
 }
 
 export function createAdaptForLearnersHandler(dependencies: AdaptForLearnersDependencies) {
-  return (input: unknown, context: WebMcpExecutionContext): AdaptForLearnersSuccess | ToolFailure => {
-    if (context.signal.aborted) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+  return (input: unknown, context?: WebMcpExecutionContext): AdaptForLearnersSuccess | ToolFailure => {
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
     const parsed = adaptForLearnersInputSchema.safeParse(input)
     if (!parsed.success) return failure('invalid-input', 'Learner adaptations are invalid. Check the named sections, matching cycle payloads and instruction limits.')
     if (parsed.data.sectionsToUpdate.length === 0) return failure('invalid-input', 'Select at least one authorised section to propose for adaptation.')
@@ -91,7 +92,7 @@ export function createAdaptForLearnersHandler(dependencies: AdaptForLearnersDepe
       if (error instanceof Error && /before value|Duplicate/.test(error.message)) return failure('stale-state', 'The accepted lesson changed before this proposal could be recorded. Try again with the current lesson.')
       throw error
     }
-    if (context.signal.aborted) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
     const receipt = dependencies.receiveChangeSet(proposal)
     if (!receipt.ok) return failure(receipt.code, receipt.message)
     return { ok: true, tool: 'adapt_for_learners', changeSetId, operationIds, sections: operations.map(({ section }) => section), stateChanged: true }

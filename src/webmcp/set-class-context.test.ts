@@ -24,6 +24,19 @@ function harness() {
 }
 
 describe('set_class_context WebMCP handler', () => {
+  it.each(['omitted context', 'empty context', 'live signal'] as const)('preserves production proposal boundaries with %s', (mode) => {
+    const initial = createCleanDraft('2026-08-29T09:00:00.000Z')
+    const commands = createLessonCommandBoundary(initial, () => undefined)
+    const production = createProductionWebMcpHandlers(commands).set_class_context
+    const result = mode === 'omitted context'
+      ? production?.(input)
+      : production?.(input, mode === 'empty context' ? {} : { signal: signal() })
+    expect(result).toMatchObject({ ok: true, stateChanged: true, section: 'class-context' })
+    expect(commands.getDraft().classContext).toEqual(initial.classContext)
+    expect(commands.getDraft().pendingChanges).toHaveLength(1)
+    expect(commands.getDraft().approvedAt).toBeUndefined()
+  })
+
   it('creates one reviewable proposal without changing accepted or unrelated content', () => {
     const { handler, getDraft, original } = harness()
     const result = handler(input, { signal: signal() })

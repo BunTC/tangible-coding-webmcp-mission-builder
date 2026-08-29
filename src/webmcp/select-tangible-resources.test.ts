@@ -25,6 +25,20 @@ function harness(initial: LessonDraft = createGoldenPathDraft('2026-08-29T10:00:
 }
 
 describe('select_tangible_resources WebMCP handler', () => {
+  it.each(['omitted context', 'empty context', 'live signal'] as const)('preserves production proposal boundaries with %s', (mode) => {
+    const initial = createGoldenPathDraft('2026-08-29T10:00:00.000Z')
+    const commands = createLessonCommandBoundary(initial, () => undefined)
+    const production = createProductionWebMcpHandlers(commands).select_tangible_resources
+    const result = mode === 'omitted context'
+      ? production?.(input)
+      : production?.(input, mode === 'empty context' ? {} : { signal: signal() })
+    expect(result).toMatchObject({ ok: true, stateChanged: true, section: 'tangible-resources' })
+    expect(commands.getDraft().resources).toEqual(initial.resources)
+    expect(commands.getDraft().groupingPlan).toEqual(initial.groupingPlan)
+    expect(commands.getDraft().pendingChanges).toHaveLength(1)
+    expect(commands.getDraft().approvedAt).toBeUndefined()
+  })
+
   it('keeps its strict runtime schema structurally aligned with the authoritative descriptor', () => {
     const descriptor = WEBMCP_TOOL_CATALOGUE.find(({ name }) => name === 'select_tangible_resources')
     expect(descriptor?.inputSchema).toBe(selectTangibleResourcesJsonSchema)

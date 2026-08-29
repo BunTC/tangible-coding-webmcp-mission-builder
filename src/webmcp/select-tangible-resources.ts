@@ -3,6 +3,7 @@ import { createPendingChangeSet, getSectionValue } from '../domain/lesson-change
 import { classContextSchema, resourceInventorySchema, type ChangeSet, type LessonDraft, type ResourceInventory } from '../domain/lesson-schemas'
 import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
+import { isWebMcpInvocationAborted } from './webmcp-execution'
 
 export const selectTangibleResourcesInputSchema = resourceInventorySchema
   .omit({ roleCards: true })
@@ -45,8 +46,8 @@ export interface SelectTangibleResourcesDependencies {
 const failure = (code: ExpectedToolErrorCode, message: string): ToolFailure => ({ ok: false, error: { code, message }, stateChanged: false })
 
 export function createSelectTangibleResourcesHandler(dependencies: SelectTangibleResourcesDependencies) {
-  return (input: unknown, context: WebMcpExecutionContext): SelectTangibleResourcesSuccess | ToolFailure => {
-    if (context.signal.aborted) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+  return (input: unknown, context?: WebMcpExecutionContext): SelectTangibleResourcesSuccess | ToolFailure => {
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
     const parsed = selectTangibleResourcesInputSchema.safeParse(input)
     if (!parsed.success) return failure('invalid-input', 'Resource inventory is invalid. Check equipment quantities and permitted fields.')
     const draft = dependencies.getDraft()
@@ -66,7 +67,7 @@ export function createSelectTangibleResourcesHandler(dependencies: SelectTangibl
       if (error instanceof Error && /before value|Duplicate/.test(error.message)) return failure('stale-state', 'The accepted lesson changed before this proposal could be recorded. Try again with the current lesson.')
       throw error
     }
-    if (context.signal.aborted) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
     const receipt = dependencies.receiveChangeSet(proposal)
     if (!receipt.ok) return failure(receipt.code, receipt.message)
     return {

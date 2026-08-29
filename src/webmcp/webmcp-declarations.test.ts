@@ -17,7 +17,7 @@ declare global {
   }
 
   interface WebMcpExecutionContext {
-    signal: AbortSignal
+    signal?: AbortSignal
   }
 
   interface WebMcpToolDescriptor {
@@ -26,7 +26,7 @@ declare global {
     description: string
     inputSchema?: Record<string, unknown>
     annotations?: WebMcpToolAnnotations
-    execute(input: unknown, context: WebMcpExecutionContext): unknown | Promise<unknown>
+    execute(input: unknown, context?: WebMcpExecutionContext): unknown | Promise<unknown>
   }
 
   interface WebMcpRegistrationOptions {

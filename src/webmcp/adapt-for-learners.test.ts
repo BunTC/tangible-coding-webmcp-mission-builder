@@ -38,6 +38,20 @@ function harness(initial: LessonDraft = acceptedMissionDraft()) {
 }
 
 describe('adapt_for_learners WebMCP handler', () => {
+  it.each(['omitted context', 'empty context', 'live signal'] as const)('preserves production proposal boundaries with %s', (mode) => {
+    const initial = acceptedMissionDraft()
+    const commands = createLessonCommandBoundary(initial, () => undefined)
+    const production = createProductionWebMcpHandlers(commands).adapt_for_learners
+    const result = mode === 'omitted context'
+      ? production?.(input)
+      : production?.(input, mode === 'empty context' ? {} : { signal: signal() })
+    expect(result).toMatchObject({ ok: true, stateChanged: true })
+    expect(commands.getDraft().mission).toEqual(initial.mission)
+    expect(commands.getDraft().adaptations).toEqual(initial.adaptations)
+    expect(commands.getDraft().pendingChanges).toHaveLength(1)
+    expect(commands.getDraft().approvedAt).toBeUndefined()
+  })
+
   it('shares the exact six-field canonical descriptor and excludes resource authority', () => {
     const descriptor = WEBMCP_TOOL_CATALOGUE.find(({ name }) => name === 'adapt_for_learners')
     expect(descriptor?.inputSchema).toBe(adaptForLearnersJsonSchema)
