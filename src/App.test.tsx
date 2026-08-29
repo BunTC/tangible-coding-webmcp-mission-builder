@@ -24,7 +24,10 @@ function seedAcceptedThenTeacherEditedProposal() {
 }
 
 describe('Mission Builder foundation', () => {
-  beforeEach(() => window.localStorage.clear())
+  beforeEach(() => {
+    window.localStorage.clear()
+    Reflect.deleteProperty(document, 'modelContext')
+  })
 
   it('renders the Mission Builder title', () => {
     renderApp()
@@ -339,11 +342,12 @@ describe('Mission Builder foundation', () => {
     expect(after.adaptations.sectionsToUpdate).toEqual([])
   })
 
-  it('keeps privacy, teacher-only approval and unavailable agent adaptation visible', () => {
+  it('keeps privacy, teacher-only approval and honest manual fallback guidance visible', () => {
     renderApp()
     expect(screen.getByText('Only the teacher can approve a lesson. Agent approval is not available.')).toBeInTheDocument()
     expect(screen.getByText('Do not enter pupil names, school details, diagnoses, attainment records or personal data.')).toBeInTheDocument()
-    expect(screen.getByText('Step 5 currently records manual teacher decisions only. No agent proposal is created.')).toBeInTheDocument()
+    expect(screen.getAllByText('WebMCP is unavailable in this browser; Manual Steps 1–7 remain available.')).toHaveLength(4)
+    expect(screen.getByText('Manual Step 5 records direct teacher decisions. WebMCP adaptation calls create reviewable proposals and never apply changes automatically.')).toBeInTheDocument()
   })
 
   it.each([
@@ -503,7 +507,7 @@ describe('Mission Builder foundation', () => {
     })
   })
 
-  it('shows grouped validation results and the limited-pattern boundary without an agent fix', () => {
+  it('shows grouped validation results, the limited-pattern boundary and honest WebMCP fallback guidance', () => {
     renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
@@ -514,8 +518,39 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByRole('heading', { name: 'Warnings' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Passed checks' })).toBeInTheDocument()
     expect(screen.getByText('This checks only obvious email, labelled phone, international phone and labelled pupil or student name patterns. It is not comprehensive safeguarding detection.')).toBeInTheDocument()
-    expect(screen.getByText('No WebMCP validation or agent fix is connected.')).toBeInTheDocument()
+    expect(screen.getAllByText('WebMCP is unavailable in this browser; Manual Steps 1–7 remain available.')).toHaveLength(4)
     expect(screen.queryByRole('button', { name: /Ask agent/i })).not.toBeInTheDocument()
+  })
+
+  it('shows accurate connected workflow guidance without obsolete unavailable claims', async () => {
+    Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool: () => undefined } })
+    renderApp()
+
+    await waitFor(() => expect(screen.getByText('WebMCP connected with all five approved tools.')).toBeInTheDocument())
+    expect(screen.getByText('Manual Step 6 remains available. WebMCP validation is also available through validate_and_prepare_lesson.')).toBeInTheDocument()
+    expect(screen.getByText(/Output preparation is not implemented, preparedOutputs remains empty, and only a human teacher may approve/)).toBeInTheDocument()
+    expect(screen.getByText(/WebMCP content tools create proposals here only after they are invoked/)).toBeInTheDocument()
+    expect(screen.getByText(/WebMCP learner-adaptation proposals are available/)).toBeInTheDocument()
+    expect(screen.queryByText(/WebMCP validation is unavailable|WebMCP is not connected|No WebMCP validation.*connected/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps the manual workflow available after a registration error', async () => {
+    Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool: () => { throw new Error('registration failed') } } })
+    renderApp()
+
+    await waitFor(() => expect(screen.getByText('WebMCP available, but tool registration failed. Manual Steps 1–7 remain available.')).toBeInTheDocument())
+    expect(screen.getAllByText('WebMCP registration failed; Manual Steps 1–7 remain available.')).toHaveLength(4)
+    expect(screen.getByRole('button', { name: 'Start New Mission' })).toBeEnabled()
+    expect(screen.getByText('Only the teacher can approve a lesson. Agent approval is not available.')).toBeInTheDocument()
+  })
+
+  it('distinguishes a malformed browser registration surface from registration failure', () => {
+    Object.defineProperty(document, 'modelContext', { configurable: true, value: {} })
+    renderApp()
+
+    expect(screen.getByText('WebMCP was detected, but its registration surface is inaccessible or malformed. Manual Steps 1–7 remain available.')).toBeInTheDocument()
+    expect(screen.getAllByText('The browser WebMCP registration surface is inaccessible or malformed; Manual Steps 1–7 remain available.')).toHaveLength(4)
+    expect(screen.queryByText('WebMCP registration failed; Manual Steps 1–7 remain available.')).not.toBeInTheDocument()
   })
 })
 

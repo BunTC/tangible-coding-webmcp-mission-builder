@@ -4,7 +4,7 @@ import { lostStoryPathMission } from './domain/lesson-factories'
 import { changeOperationSchema, classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ChangeOperation, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
 import { deriveChangeSetStatus, getSectionAttribution, getSectionValue, structurallyEqual } from './domain/lesson-change-control'
 import { useLessonStore } from './state/lesson-store'
-import { useWebMcp } from './webmcp/use-webmcp'
+import { useWebMcp, type WebMcpStatus } from './webmcp/use-webmcp'
 import { WebMcpStatusIndicator } from './webmcp/webmcp-status'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
@@ -32,6 +32,28 @@ const durationFields = {
   reflectAndImproveDurationMinutes: 'Reflect & Improve',
 } as const
 type DurationField = keyof typeof durationFields
+
+type WebMcpGuidanceArea = 'adaptation' | 'validation-control' | 'change-review' | 'validation-panel'
+
+function webMcpWorkflowGuidance(status: WebMcpStatus, area: WebMcpGuidanceArea) {
+  const manualFallback = status.state === 'unavailable'
+    ? 'WebMCP is unavailable in this browser; Manual Steps 1–7 remain available.'
+    : status.state === 'error'
+      ? status.message.includes('inaccessible or malformed')
+        ? 'The browser WebMCP registration surface is inaccessible or malformed; Manual Steps 1–7 remain available.'
+        : 'WebMCP registration failed; Manual Steps 1–7 remain available.'
+      : status.state === 'incomplete'
+        ? 'WebMCP is supported, but tool integration is incomplete; Manual Steps 1–7 remain available.'
+        : status.state === 'registering'
+          ? 'WebMCP is registering all five tools; Manual Steps 1–7 remain available while registration completes.'
+          : null
+
+  if (manualFallback) return manualFallback
+  if (area === 'adaptation') return 'WebMCP learner-adaptation proposals are available. Teacher selections in Manual Step 5 remain directly authored by the teacher.'
+  if (area === 'validation-control') return 'Manual Step 6 remains available. WebMCP validation is also available through validate_and_prepare_lesson.'
+  if (area === 'change-review') return 'No pending agent changes. WebMCP content tools create proposals here only after they are invoked; accepted lesson content changes only after teacher review.'
+  return 'WebMCP validation is available through validate_and_prepare_lesson. Output preparation is not implemented, preparedOutputs remains empty, and only a human teacher may approve.'
+}
 
 function App() {
   const { draft, dispatch, getDraft, receiveChangeSet, runValidation } = useLessonStore()
@@ -152,14 +174,14 @@ function App() {
           <label className="check-label decline-control"><input type="checkbox" disabled={!missionExists} checked={adaptations.noAdditionalAdaptation} aria-describedby="decline-description" onChange={(event) => handleNoAdditionalAdaptation(event.target.checked)} />No additional adaptation for this demo</label>
           <p id="decline-description">Select this to clear current adaptation decisions and explicitly complete Step 5 without them.</p>
           <p className={`adaptation-status ${missionExists && adaptationComplete ? 'complete' : ''}`} role="status" aria-label="Step 5 completion status" aria-live="polite" aria-atomic="true">{!missionExists ? 'Step 5 unavailable' : adaptationComplete ? 'Step 5 complete' : 'Step 5 incomplete: add support or extension instructions, or explicitly decline additional adaptation.'}</p>
-          <p>Manual teacher decisions only. Agent adaptation is unavailable in this foundation.</p>
+          <p>{webMcpWorkflowGuidance(webMcpStatus, 'adaptation')}</p>
         </section>
         <section className="setup-controls validation-controls" aria-labelledby="validation-controls-title">
           <h3 id="validation-controls-title">6. Validate lesson</h3>
           <p>Run deterministic checks against the current teacher-edited draft.</p>
           <button type="button" className="primary-button" disabled={!missionExists || !adaptationComplete} onClick={() => dispatch({ type: 'run-validation' })}>Run validation</button>
           {(!missionExists || !adaptationComplete) && <p className="blocking-note">Complete Steps 4 and 5 before validation.</p>}
-          <p>Manual validation only. Agent fixes and WebMCP validation are unavailable.</p>
+          <p>{webMcpWorkflowGuidance(webMcpStatus, 'validation-control')}</p>
         </section>
       </aside>
       <section className="lesson-canvas" aria-labelledby="lesson-title">
@@ -183,9 +205,9 @@ function App() {
           <AdaptationCard title="Access and support" selected={supportOptions.filter(({ value }) => adaptations.supports.includes(value)).map(({ label }) => label)} instructions={adaptations.supportInstructions} declined={adaptations.noAdditionalAdaptation} />
           <AdaptationCard title="Extension challenge" selected={extensionOptions.filter(({ value }) => adaptations.extensions.includes(value)).map(({ label }) => label)} instructions={adaptations.extensionInstructions} declined={adaptations.noAdditionalAdaptation} />
         </section>
-        <ChangeReview draft={draft} onResolve={(changeSetId, operationId, decision, acceptedValue) => dispatch({ type: 'resolve-change-operation', payload: { changeSetId, operationId, decision, acceptedValue } })} />
+        <ChangeReview draft={draft} webMcpStatus={webMcpStatus} onResolve={(changeSetId, operationId, decision, acceptedValue) => dispatch({ type: 'resolve-change-operation', payload: { changeSetId, operationId, decision, acceptedValue } })} />
       </section>
-      <ValidationPanel draft={draft} onAcknowledge={(id) => dispatch({ type: 'acknowledge-warning', payload: id })} />
+      <ValidationPanel draft={draft} webMcpStatus={webMcpStatus} onAcknowledge={(id) => dispatch({ type: 'acknowledge-warning', payload: id })} />
     </main>
   </div>
 }
@@ -194,7 +216,7 @@ function formatReviewValue(value: unknown) {
   return JSON.stringify(value, null, 2)
 }
 
-function ChangeReview({ draft, onResolve }: { draft: LessonDraft; onResolve: (changeSetId: string, operationId: string, decision: 'accept' | 'edit-and-accept' | 'reject', acceptedValue?: unknown) => void }) {
+function ChangeReview({ draft, webMcpStatus, onResolve }: { draft: LessonDraft; webMcpStatus: WebMcpStatus; onResolve: (changeSetId: string, operationId: string, decision: 'accept' | 'edit-and-accept' | 'reject', acceptedValue?: unknown) => void }) {
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const activeSetOperations = draft.pendingChanges.flatMap((set) => set.operations.map((operation) => ({ set, operation })))
@@ -213,7 +235,7 @@ function ChangeReview({ draft, onResolve }: { draft: LessonDraft; onResolve: (ch
   }
   return <section className="change-review" aria-labelledby="change-review-title">
     <div className="section-heading"><div><p className="eyebrow">Human change control</p><h3 id="change-review-title">7. Review agent changes</h3></div><span>{pendingOperations.length} pending</span></div>
-    {pendingOperations.length === 0 ? <div className="canvas-card"><p>No pending agent changes. Step 7 proposals can arrive only through the transport-independent domain interface; WebMCP is not connected.</p></div> : pendingOperations.map(({ set, operation }) => {
+    {pendingOperations.length === 0 ? <div className="canvas-card"><p>{webMcpWorkflowGuidance(webMcpStatus, 'change-review')}</p></div> : pendingOperations.map(({ set, operation }) => {
       const current = getSectionValue(draft, operation.section)
       const stale = !structurallyEqual(current, operation.before)
       const descriptionId = `${operation.operationId}-description`
@@ -263,7 +285,7 @@ function MissionListCard({ label, items, minimumRows, maximumRows, maxLength, on
   return <section className="canvas-card editable-card"><div className="card-kicker">{label} · Manual draft</div><h3>{label}</h3>{rows.map((item, index) => <label key={index}>{itemLabel} {index + 1}<input id={`${itemLabel.toLowerCase().replaceAll(' ', '-')}-${index + 1}`} value={item} maxLength={maxLength} onChange={(event) => onChange(index, event.target.value)} /></label>)}{rows.length < maximumRows && <button type="button" className="secondary-button add-row-button" onClick={onAdd}>Add {itemLabel.toLowerCase()}</button>}</section>
 }
 
-function ValidationPanel({ draft, onAcknowledge }: { draft: LessonDraft; onAcknowledge: (id: string) => void }) {
+function ValidationPanel({ draft, webMcpStatus, onAcknowledge }: { draft: LessonDraft; webMcpStatus: WebMcpStatus; onAcknowledge: (id: string) => void }) {
   const { validation } = draft
   const groups = [
     { severity: 'error' as const, title: 'Errors' },
@@ -297,8 +319,8 @@ function ValidationPanel({ draft, onAcknowledge }: { draft: LessonDraft; onAckno
     <div className="notice notice-warning"><strong>Human decision boundary</strong><p>Only the teacher can approve a lesson. Agent approval is not available.</p><p>Ready means ready for teacher review; validation never approves a lesson.</p></div>
     <div className="notice notice-info"><strong>Sample information only</strong><p>Do not enter pupil names, school details, diagnoses, attainment records or personal data.</p></div>
     <div className="notice notice-info"><strong>Limited privacy check</strong><p>This checks only obvious email, labelled phone, international phone and labelled pupil or student name patterns. It is not comprehensive safeguarding detection.</p></div>
-    <div className="notice notice-info"><strong>Agent validation unavailable</strong><p>No WebMCP validation or agent fix is connected.</p></div>
-    <div className="notice notice-info"><strong>Agent adaptation unavailable</strong><p>Step 5 currently records manual teacher decisions only. No agent proposal is created.</p></div>
+    <div className="notice notice-info"><strong>WebMCP validation boundary</strong><p>{webMcpWorkflowGuidance(webMcpStatus, 'validation-panel')}</p></div>
+    <div className="notice notice-info"><strong>Teacher-authored adaptation</strong><p>Manual Step 5 records direct teacher decisions. WebMCP adaptation calls create reviewable proposals and never apply changes automatically.</p></div>
   </aside>
 }
 
