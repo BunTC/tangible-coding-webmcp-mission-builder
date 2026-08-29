@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { changeOperationSchema, changeSetSchema, toolSectionAllowlists, type ChangeSet, type LessonDraft } from './lesson-schemas'
-import { structurallyEqual } from './lesson-change-control'
 
 export const PROPOSAL_PACKAGE_FORMAT = 'tangible-coding-agent-proposal' as const
 export const PROPOSAL_PACKAGE_VERSION = 1 as const
@@ -15,6 +14,26 @@ const portableOperationSchema = z.object({
   before: z.unknown(),
   proposed: z.unknown(),
 }).strict()
+
+function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => jsonValuesEqual(value, right[index]))
+  }
+  if (!isPlainJsonObject(left) || !isPlainJsonObject(right)) return false
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) => Object.hasOwn(right, key) && jsonValuesEqual(left[key], right[key]))
+}
 
 export const proposalPackageSchema = z.object({
   format: z.literal(PROPOSAL_PACKAGE_FORMAT),
@@ -37,7 +56,7 @@ export const proposalPackageSchema = z.object({
       validation: { valid: true, messages: [] },
     })
     if (!domainOperation.success) context.addIssue({ code: 'custom', path: ['operations', index], message: 'The operation values do not match the named lesson section.' })
-    else if (!structurallyEqual(domainOperation.data.before, operation.before) || !structurallyEqual(domainOperation.data.proposed, operation.proposed)) context.addIssue({ code: 'custom', path: ['operations', index], message: 'The operation contains an unknown section-value field.' })
+    else if (!jsonValuesEqual(domainOperation.data.before, operation.before) || !jsonValuesEqual(domainOperation.data.proposed, operation.proposed)) context.addIssue({ code: 'custom', path: ['operations', index], message: 'The operation contains an unknown section-value field.' })
   })
 })
 

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createGoldenPathDraft, lostStoryPathMission } from './lesson-factories'
+import { createCleanDraft, createGoldenPathDraft, lostStoryPathMission } from './lesson-factories'
 import { createPendingChangeSet, receiveChangeSet, resolveOperation } from './lesson-change-control'
 import { createLessonCommandBoundary, persistLessonDraft, restoreLessonDraft } from '../state/lesson-state'
 import { createProposalPackage, importProposalPackage, MAX_PROPOSAL_PACKAGE_CHARACTERS, proposalPackageSchema } from './lesson-proposal-package'
 import { createSetClassContextHandler } from '../webmcp/set-class-context'
+import type { LessonDraft } from './lesson-schemas'
 
 const now = '2026-08-29T12:00:00.000Z'
 const baseDraft = () => ({ ...createGoldenPathDraft(now), mission: { ...lostStoryPathMission } })
@@ -18,7 +19,45 @@ function packagedClassProposal() {
   return { draft, package: createProposalPackage(set) }
 }
 
-function populatedDraft() {
+const productionPackage = {
+  changeSetId: '57db292f-fb8f-480d-ba46-b04d302028da',
+  createdAt: '2026-08-29T20:24:28.755Z',
+  format: 'tangible-coding-agent-proposal',
+  operations: [{
+    before: { classSize: 24, durationMinutes: 45, goal: '', learningFocus: ['debugging'], stage: 'P4', subjectContext: 'literacy', teacherConfidence: 'beginner' },
+    operationId: 'd8e729a5-6c28-4e98-9614-bbf85a9b5daa',
+    proposed: {
+      classSize: 24,
+      durationMinutes: 45,
+      goal: 'Pupils collaboratively sequence and debug instructions that guide a character through a Scottish folklore story journey.',
+      learningFocus: ['sequencing', 'debugging', 'collaboration'],
+      stage: 'P4',
+      subjectContext: 'literacy',
+      teacherConfidence: 'beginner',
+    },
+    section: 'class-context',
+  }],
+  schemaVersion: 1,
+  sourceTool: 'set_class_context',
+} as const
+
+function orderedRecord(value: Record<string, unknown>, keys: string[]) {
+  return Object.fromEntries(keys.map((key) => [key, value[key]]))
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected an object-valued section')
+  return value as Record<string, unknown>
+}
+
+function expectSuccessfulImport(portable: unknown, draft = baseDraft()) {
+  const commands = createLessonCommandBoundary(draft, () => undefined)
+  expect(importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: true, operationCount: 1 })
+  expect(commands.getDraft().pendingChanges).toHaveLength(1)
+  expect(commands.getDraft().classContext).toEqual(draft.classContext)
+}
+
+function populatedDraft(): LessonDraft {
   const draft = baseDraft()
   const historical = createPendingChangeSet(draft, 'build_tangible_mission', [{ section: 'mission-story', before: draft.mission.missionStory, proposed: 'Historical proposed story.' }], { changeSetId: 'historical-set', operationIds: ['historical-operation'], createdAt: '2026-08-29T10:00:00.000Z' })
   const received = receiveChangeSet(draft, historical, '2026-08-29T10:01:00.000Z')
@@ -32,7 +71,7 @@ function populatedDraft() {
   }
 }
 
-function expectRejectedWithoutMutation(serialized: string, code: string, draft = populatedDraft()) {
+function expectRejectedWithoutMutation(serialized: string, code: string, draft: LessonDraft = populatedDraft()) {
   const snapshot = structuredClone(draft)
   const commands = createLessonCommandBoundary(draft, () => undefined)
   expect(importProposalPackage(serialized, commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: false, code })
@@ -61,6 +100,26 @@ describe('portable proposal packages', () => {
     expect(commands.getDraft().validation.preparedOutputs).toEqual([])
   })
 
+  it('imports the exact production package with ChatGPT-reordered nested keys', () => {
+    expectSuccessfulImport(productionPackage, createCleanDraft(now))
+  })
+
+  it('accepts semantically identical packages regardless of object-key order', () => {
+    const canonical = packagedClassProposal().package
+    const operation = canonical.operations[0]
+    const alphabeticalRoot = orderedRecord(canonical, ['changeSetId', 'createdAt', 'format', 'operations', 'schemaVersion', 'sourceTool'])
+    const reversedRoot = orderedRecord(canonical, ['sourceTool', 'schemaVersion', 'operations', 'createdAt', 'changeSetId', 'format'])
+    const reorderedOperation = { before: operation.before, operationId: operation.operationId, proposed: operation.proposed, section: operation.section }
+    const contextKeys = ['classSize', 'durationMinutes', 'goal', 'learningFocus', 'stage', 'subjectContext', 'teacherConfidence']
+    const reversedContextKeys = [...contextKeys].reverse()
+    const alphabeticalNested = { ...canonical, operations: [{ ...operation, before: orderedRecord(record(operation.before), contextKeys), proposed: orderedRecord(record(operation.proposed), contextKeys) }] }
+    const reversedNested = { ...canonical, operations: [{ ...operation, before: orderedRecord(record(operation.before), reversedContextKeys), proposed: orderedRecord(record(operation.proposed), reversedContextKeys) }] }
+
+    for (const portable of [canonical, alphabeticalRoot, reversedRoot, { ...canonical, operations: [reorderedOperation] }, alphabeticalNested, reversedNested]) {
+      expectSuccessfulImport(portable)
+    }
+  })
+
   it('moves a proposal between two isolated browser storage contexts', () => {
     const agentStorage = storage()
     const teacherStorage = storage()
@@ -82,7 +141,7 @@ describe('portable proposal packages', () => {
     ['malformed JSON', '{', 'malformed-json'],
     ['wrong version', JSON.stringify({ ...packagedClassProposal().package, schemaVersion: 2 }), 'wrong-version'],
     ['unknown root field', JSON.stringify({ ...packagedClassProposal().package, surprise: true }), 'unknown-field'],
-    ['unknown operation field', JSON.stringify({ ...packagedClassProposal().package, operations: [{ ...packagedClassProposal().package.operations[0], status: 'pending' }] }), 'forbidden-content'],
+    ['unknown operation field', JSON.stringify({ ...packagedClassProposal().package, operations: [{ ...packagedClassProposal().package.operations[0], surprise: true }] }), 'unknown-field'],
     ['invalid section value', JSON.stringify({ ...packagedClassProposal().package, operations: [{ ...packagedClassProposal().package.operations[0], proposed: { ...baseDraft().classContext, classSize: 999 } }] }), 'invalid-package'],
     ['forbidden approval', JSON.stringify({ ...packagedClassProposal().package, approvedAt: now }), 'forbidden-content'],
     ['forbidden resolution', JSON.stringify({ ...packagedClassProposal().package, resolution: { outcome: 'accepted' } }), 'forbidden-content'],
@@ -123,6 +182,21 @@ describe('portable proposal packages', () => {
     const unknownValueField = { ...portable, operations: [{ ...portable.operations[0], proposed: { ...portable.operations[0].proposed as object, unauthorized: true } }] }
     expect(proposalPackageSchema.safeParse(unknownValueField).success).toBe(false)
     expectRejectedWithoutMutation(JSON.stringify(unknownValueField), 'unknown-field')
+    const unknownBeforeField = { ...portable, operations: [{ ...portable.operations[0], before: { ...portable.operations[0].before as object, unauthorized: true } }] }
+    expect(proposalPackageSchema.safeParse(unknownBeforeField).success).toBe(false)
+    expectRejectedWithoutMutation(JSON.stringify(unknownBeforeField), 'unknown-field')
+  })
+
+  it('preserves primitive types, primitive values and array order exactly', () => {
+    const { package: portable } = packagedClassProposal()
+    const alteredPrimitive = { ...portable, operations: [{ ...portable.operations[0], before: { ...record(portable.operations[0].before), classSize: 23 } }] }
+    expectRejectedWithoutMutation(JSON.stringify(alteredPrimitive), 'stale-state')
+    const alteredType = { ...portable, operations: [{ ...portable.operations[0], before: { ...record(portable.operations[0].before), classSize: '24' } }] }
+    expectRejectedWithoutMutation(JSON.stringify(alteredType), 'invalid-package')
+
+    const draft: LessonDraft = { ...populatedDraft(), classContext: { ...populatedDraft().classContext, learningFocus: ['debugging', 'sequencing'] } }
+    const reorderedArray = { ...portable, operations: [{ ...portable.operations[0], before: { ...draft.classContext, learningFocus: ['sequencing', 'debugging'] } }] }
+    expectRejectedWithoutMutation(JSON.stringify(reorderedArray), 'stale-state', draft)
   })
 
   it.each(['__proto__', 'constructor', 'prototype'])('rejects hostile %s keys without changing object prototypes', (key) => {
