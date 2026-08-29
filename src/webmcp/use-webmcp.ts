@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { LessonCommandBoundary } from '../state/lesson-state'
 import { createSetClassContextHandler } from './set-class-context'
+import { createSelectTangibleResourcesHandler } from './select-tangible-resources'
 import { detectWebMcp, hasCompleteHandlers, registerCompleteWebMcpCatalogue, type WebMcpConnectionState, type WebMcpHandlers } from './webmcp-registration'
 
 export interface WebMcpStatus { state: WebMcpConnectionState; message: string }
@@ -19,6 +20,12 @@ type WebMcpLessonCommands = Pick<LessonCommandBoundary, 'getDraft' | 'receiveCha
 export function createProductionWebMcpHandlers(commands: WebMcpLessonCommands): WebMcpHandlers {
   return {
     set_class_context: createSetClassContextHandler({
+      getDraft: commands.getDraft,
+      receiveChangeSet: commands.receiveChangeSet,
+      createId: () => crypto.randomUUID(),
+      now: () => new Date().toISOString(),
+    }),
+    select_tangible_resources: createSelectTangibleResourcesHandler({
       getDraft: commands.getDraft,
       receiveChangeSet: commands.receiveChangeSet,
       createId: () => crypto.randomUUID(),

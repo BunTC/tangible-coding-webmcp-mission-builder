@@ -1,4 +1,5 @@
 import { toolSectionAllowlists, type ApprovedToolName, type LessonSection } from '../domain/lesson-schemas'
+import { selectTangibleResourcesJsonSchema } from './select-tangible-resources'
 
 const text = (description: string, maxLength: number) => ({ type: 'string', description, maxLength })
 const integer = (description: string, minimum: number, maximum?: number) => ({ type: 'integer', description, minimum, ...(maximum === undefined ? {} : { maximum }) })
@@ -16,17 +17,6 @@ const classContextInputSchema = {
     goal: text('Optional fictional lesson goal.', 280),
   },
   required: ['stage', 'classSize', 'durationMinutes', 'learningFocus', 'subjectContext', 'teacherConfidence'],
-} as const
-
-const resourceInputSchema = {
-  type: 'object', additionalProperties: false,
-  properties: {
-    robots: integer('Available robots.', 0, 12), tileSets: integer('Available tile sets.', 0, 30),
-    activityMats: integer('Available activity mats.', 0, 12), instructionCardPacks: integer('Available instruction-card packs.', 0, 12),
-    roleCards: integer('Optional available pupil role cards.', 0, 40),
-    allowTileOnlyGroups: { type: 'boolean', description: 'Whether tile-only stations are allowed.' },
-  },
-  required: ['robots', 'tileSets', 'activityMats', 'instructionCardPacks', 'allowTileOnlyGroups'],
 } as const
 
 const missionInputSchema = {
@@ -72,7 +62,7 @@ export interface WebMcpToolDefinition {
 
 export const WEBMCP_TOOL_CATALOGUE: readonly WebMcpToolDefinition[] = [
   { name: 'set_class_context', title: 'Set class context', description: 'Propose a structured class context for teacher review.', inputSchema: classContextInputSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.set_class_context, expectedOutputDescription: 'Proposal identity, class-context section, normalized context and validation messages.' },
-  { name: 'select_tangible_resources', title: 'Select tangible resources', description: 'Propose tangible resource inventory for teacher review.', inputSchema: resourceInputSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.select_tangible_resources, expectedOutputDescription: 'Proposal identity, resource section, normalized inventory and resource warnings.' },
+  { name: 'select_tangible_resources', title: 'Select tangible resources', description: 'Propose tangible resource inventory for teacher review.', inputSchema: selectTangibleResourcesJsonSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.select_tangible_resources, expectedOutputDescription: 'Proposal identity, resource section, normalized inventory and resource warnings.' },
   { name: 'build_tangible_mission', title: 'Build tangible mission', description: 'Propose structured mission sections for teacher review.', inputSchema: missionInputSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.build_tangible_mission, expectedOutputDescription: 'Proposal identity, affected mission sections and feasibility warnings.' },
   { name: 'adapt_for_learners', title: 'Adapt for learners', description: 'Propose named learner adaptations for teacher review.', inputSchema: adaptationInputSchema, annotations: { readOnlyHint: false, untrustedContentHint: true }, allowedSections: toolSectionAllowlists.adapt_for_learners, expectedOutputDescription: 'Proposal identity, affected sections and before/proposed values.' },
   { name: 'validate_and_prepare_lesson', title: 'Validate lesson', description: 'Run deterministic validation and report readiness for teacher review.', inputSchema: validationInputSchema, annotations: { readOnlyHint: false, untrustedContentHint: false }, allowedSections: toolSectionAllowlists.validate_and_prepare_lesson, expectedOutputDescription: 'Deterministic checks, readiness and preparationImplemented false; no approval or outputs.' },
