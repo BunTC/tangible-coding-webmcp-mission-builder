@@ -152,6 +152,7 @@ Browser print views are sufficient. A production PDF service is not required.
 - Zod runtime schema validation
 - Vercel public deployment
 - Browser local storage for one fictional draft
+- Teacher-controlled copy/paste handoff: pending proposal packages travel from ChatGPT to the teacher browser, while strict accepted-context packages travel from the teacher browser to downstream WebMCP invocations for transient use only
 - WebMCP imperative API
 - Native browser print CSS
 - No production database
@@ -162,6 +163,7 @@ Browser print views are sufficient. A production PDF service is not required.
 - No real pupil or school data.
 - No pupil accounts.
 - No SEND diagnoses or attainment records.
+- Accepted-context packages contain only the fictional accepted class context, resources, mission and learner adaptations. They exclude proposal state, history, validation, outputs and approval, and never synchronize or import accepted state into another browser.
 - No supplier-owned code or images without permission.
 - No full commercial curriculum pack in the public repository.
 - Open-source licence applies only to authorised repository contents.

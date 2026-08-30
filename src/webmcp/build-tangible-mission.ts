@@ -5,6 +5,7 @@ import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
 import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
+import { parseTeacherContextPackage } from '../domain/lesson-context-package'
 
 const challengeLevelSchema = z.enum(['introductory', 'core', 'stretch'])
 const positiveMinutes = z.number().int().positive()
@@ -25,6 +26,7 @@ export const buildTangibleMissionInputSchema = z.object({
   reflectAndImprove: z.string().max(500),
   reflectAndImproveDurationMinutes: positiveMinutes,
   assessmentEvidence: z.array(z.string().max(180)).min(1).max(5),
+  teacherContext: z.string().optional(),
 }).strict()
 
 const text = (description: string, maxLength: number) => ({ type: 'string', description, maxLength })
@@ -43,6 +45,7 @@ export const buildTangibleMissionJsonSchema = {
     // Canonical schema name; 32 characters deliberately exceed Chrome's approximate, non-normative 30-character recommendation.
     reflectAndImprove: text('Reflect and Improve content.', 500), reflectAndImproveDurationMinutes: integer('Reflect and Improve minutes.'),
     assessmentEvidence: { type: 'array', description: 'Observable assessment evidence.', items: text('One evidence statement.', 180), minItems: 1, maxItems: 5 },
+    teacherContext: text('Optional serialized teacher-accepted context package for transient use.', 20000),
   },
   required: ['title', 'theme', 'challengeLevel', 'learningIntention', 'successCriteria', 'missionStory', 'plan', 'planDurationMinutes', 'buildAndExplain', 'buildAndExplainDurationMinutes', 'testAndDebug', 'testAndDebugDurationMinutes', 'reflectAndImprove', 'reflectAndImproveDurationMinutes', 'assessmentEvidence'],
 } as const
@@ -62,7 +65,9 @@ export type BuildTangibleMissionSuccess = {
   missionVersion: { title: string; challengeLevel: MissionInput['challengeLevel'] }
   feasibilityWarnings: string[]
   proposalPackage: ProposalPackage
-  stateChanged: true
+  stateChanged: boolean
+  delivery?: 'portable-package-only'
+  usedContextFingerprint?: string
 }
 
 export interface BuildTangibleMissionDependencies {
@@ -90,11 +95,8 @@ function proposedOperations(draft: LessonDraft, mission: MissionInput): Proposed
 }
 
 export function createBuildTangibleMissionHandler(dependencies: BuildTangibleMissionDependencies) {
-  return (input: unknown, context?: WebMcpExecutionContext): BuildTangibleMissionSuccess | ToolFailure => {
+  const execute = (mission: MissionInput, draft: LessonDraft, context: WebMcpExecutionContext | undefined, contextFingerprint?: string): BuildTangibleMissionSuccess | ToolFailure => {
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
-    const parsed = buildTangibleMissionInputSchema.safeParse(input)
-    if (!parsed.success) return failure('invalid-input', 'Mission content is invalid. Supply every authorised mission field using the permitted lengths and durations.')
-    const draft = dependencies.getDraft()
     if (!classContextSchema.safeParse(draft.classContext).success || !resourceInventorySchema.safeParse(draft.resources).success) {
       return failure('prerequisite-failed', 'Valid accepted class and resource context is required before proposing a mission.')
     }
@@ -102,7 +104,7 @@ export function createBuildTangibleMissionHandler(dependencies: BuildTangibleMis
     const operationIds = BUILD_MISSION_SECTION_ORDER.map(() => dependencies.createId())
     let proposal: ChangeSet
     try {
-      proposal = createPendingChangeSet(draft, 'build_tangible_mission', proposedOperations(draft, parsed.data), {
+      proposal = createPendingChangeSet(draft, 'build_tangible_mission', proposedOperations(draft, mission), {
         changeSetId, operationIds, createdAt: dependencies.now(),
       })
     } catch (error) {
@@ -110,18 +112,31 @@ export function createBuildTangibleMissionHandler(dependencies: BuildTangibleMis
       throw error
     }
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
-    const receipt = dependencies.receiveChangeSet(proposal)
-    if (!receipt.ok) return failure(receipt.code, receipt.message)
+    if (!contextFingerprint) {
+      const receipt = dependencies.receiveChangeSet(proposal)
+      if (!receipt.ok) return failure(receipt.code, receipt.message)
+    }
     return {
       ok: true,
       tool: 'build_tangible_mission',
       changeSetId,
       operationIds,
       sections: BUILD_MISSION_SECTION_ORDER,
-      missionVersion: { title: parsed.data.title, challengeLevel: parsed.data.challengeLevel },
+      missionVersion: { title: mission.title, challengeLevel: mission.challengeLevel },
       feasibilityWarnings: [...draft.groupingPlan.warnings],
-      proposalPackage: createProposalPackage(proposal),
-      stateChanged: true,
+      proposalPackage: createProposalPackage(proposal, contextFingerprint),
+      stateChanged: !contextFingerprint,
+      ...(contextFingerprint ? { delivery: 'portable-package-only' as const, usedContextFingerprint: contextFingerprint } : {}),
     }
+  }
+  return (input: unknown, context?: WebMcpExecutionContext): BuildTangibleMissionSuccess | ToolFailure => {
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+    const parsed = buildTangibleMissionInputSchema.safeParse(input)
+    if (!parsed.success) return failure('invalid-input', 'Mission content is invalid. Supply every authorised mission field using the permitted lengths and durations.')
+    const { teacherContext, ...mission } = parsed.data
+    if (!teacherContext) return execute(mission as MissionInput, dependencies.getDraft(), context)
+    return parseTeacherContextPackage(teacherContext).then((result) => result.ok
+      ? execute(mission as MissionInput, result.draft, context, result.package.contextFingerprint)
+      : failure('invalid-input', result.message)) as unknown as BuildTangibleMissionSuccess | ToolFailure
   }
 }

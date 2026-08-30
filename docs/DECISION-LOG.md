@@ -186,6 +186,21 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Status: Confirmed
 - Effect: Each successful content-tool result includes the exact pending change set as an untrusted portable package. The package records its format and schema version, approved source tool, injected change-set and operation identities, ISO creation time, authorized named sections, structural `before` values and proposed values. Structural `before` values are the portable revision evidence; browser-specific draft IDs and timestamps are excluded because equivalent drafts in isolated browser contexts have different local identities. Import uses strict Zod validation, size and operation limits, tool authority, ID-collision and structural-freshness checks, then routes the proposal through the existing synchronous receipt boundary. Import never transfers accepted lesson state, validation, prepared outputs or approval and never accepts or approves content. Only the teacher may accept, edit-and-accept or reject imported operations in the existing review UI.
 
+## D-020 — Backend-free accepted-context return handoff
+
+- Date: 2026-08-30
+- Decision: Add a strict versioned, teacher-controlled accepted-context package from the teacher browser to downstream WebMCP invocations. Supplied context is verified, used transiently and never persisted or imported as accepted state into the agent browser.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect:
+  1. This supersedes only D-019's one-way handoff limitation. D-019 pending-proposal transport and teacher review remain authoritative.
+  2. `set_class_context` remains unchanged. The other four tools accept an optional serialized `teacherContext` package and otherwise retain browser-local behaviour.
+  3. The package contains accepted class context, resources, mission and learner adaptations only. It excludes draft identity, grouping, proposals, history, validation, outputs and approval; is limited to 20,000 UTF-16 characters and nesting depth six; and is guarded by strict schemas, limited privacy detection and a canonical SHA-256 content fingerprint.
+  4. The fingerprint detects content changes but is neither authentication nor signing. `exportedAt` is informational only.
+  5. Content tools invoked with supplied context return version-2 portable proposals bound to the fingerprint, with `stateChanged: false` and `delivery: "portable-package-only"`; they do not call the agent-local receipt boundary. Version-1 proposal imports remain compatible.
+  6. Transient validation uses the pure deterministic validator, returns `delivery: "transient-result-only"`, changes no browser state, prepares no outputs and has no approval authority.
+  7. Chrome exposes an explicit `Copy accepted context for ChatGPT` action. There is no backend, synchronization, decision receipt or accepted-state import.
+
 ## New decision template
 
 ```markdown

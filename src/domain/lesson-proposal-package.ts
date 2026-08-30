@@ -1,8 +1,10 @@
 import { z } from 'zod'
 import { changeOperationSchema, changeSetSchema, toolSectionAllowlists, type ChangeSet, type LessonDraft } from './lesson-schemas'
+import { acceptedContextFromDraft, fingerprintTeacherContext } from './lesson-context-package'
 
 export const PROPOSAL_PACKAGE_FORMAT = 'tangible-coding-agent-proposal' as const
 export const PROPOSAL_PACKAGE_VERSION = 1 as const
+export const TRANSIENT_PROPOSAL_PACKAGE_VERSION = 2 as const
 export const MAX_PROPOSAL_PACKAGE_CHARACTERS = 50_000
 export const MAX_PROPOSAL_PACKAGE_OPERATIONS = 9
 
@@ -35,14 +37,18 @@ function jsonValuesEqual(left: unknown, right: unknown): boolean {
     && leftKeys.every((key) => Object.hasOwn(right, key) && jsonValuesEqual(left[key], right[key]))
 }
 
-export const proposalPackageSchema = z.object({
+const proposalPackageBaseSchema = z.object({
   format: z.literal(PROPOSAL_PACKAGE_FORMAT),
-  schemaVersion: z.literal(PROPOSAL_PACKAGE_VERSION),
   sourceTool: proposalToolSchema,
   changeSetId: z.string().min(1).max(200),
   createdAt: z.iso.datetime(),
   operations: z.array(portableOperationSchema).min(1).max(MAX_PROPOSAL_PACKAGE_OPERATIONS),
-}).strict().superRefine((value, context) => {
+})
+
+export const proposalPackageSchema = z.discriminatedUnion('schemaVersion', [
+  proposalPackageBaseSchema.extend({ schemaVersion: z.literal(PROPOSAL_PACKAGE_VERSION) }).strict(),
+  proposalPackageBaseSchema.extend({ schemaVersion: z.literal(TRANSIENT_PROPOSAL_PACKAGE_VERSION), contextFingerprint: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+]).superRefine((value, context) => {
   const ids = [value.changeSetId, ...value.operations.map(({ operationId }) => operationId)]
   if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', path: ['operations'], message: 'Change-set and operation IDs must be unique.' })
   const sections = value.operations.map(({ section }) => section)
@@ -62,11 +68,12 @@ export const proposalPackageSchema = z.object({
 
 export type ProposalPackage = z.infer<typeof proposalPackageSchema>
 
-export function createProposalPackage(changeSet: ChangeSet): ProposalPackage {
+export function createProposalPackage(changeSet: ChangeSet, contextFingerprint?: string): ProposalPackage {
   if (changeSet.operations.some(({ status }) => status !== 'pending') || changeSet.resolvedAt) throw new Error('Only unresolved pending proposals can be packaged.')
   return proposalPackageSchema.parse({
     format: PROPOSAL_PACKAGE_FORMAT,
-    schemaVersion: PROPOSAL_PACKAGE_VERSION,
+    schemaVersion: contextFingerprint ? TRANSIENT_PROPOSAL_PACKAGE_VERSION : PROPOSAL_PACKAGE_VERSION,
+    ...(contextFingerprint ? { contextFingerprint } : {}),
     sourceTool: changeSet.toolName,
     changeSetId: changeSet.changeSetId,
     createdAt: changeSet.createdAt,
@@ -74,14 +81,14 @@ export function createProposalPackage(changeSet: ChangeSet): ProposalPackage {
   })
 }
 
-export type ProposalImportErrorCode = 'excessive-size' | 'malformed-json' | 'wrong-version' | 'forbidden-content' | 'unknown-field' | 'invalid-package' | 'unauthorized-section' | 'duplicate-id' | 'stale-state'
+export type ProposalImportErrorCode = 'excessive-size' | 'malformed-json' | 'wrong-version' | 'forbidden-content' | 'unknown-field' | 'invalid-package' | 'unauthorized-section' | 'duplicate-id' | 'stale-state' | 'context-mismatch'
 export type ProposalImportResult =
   | { ok: true; changeSetId: string; operationCount: number; message: string }
   | { ok: false; code: ProposalImportErrorCode; message: string }
 type ProposalReceipt = { ok: true } | { ok: false; code: 'stale-state' | 'invalid-proposal'; message: string }
 
 const forbiddenKeys = new Set(['approvedAt', 'approval', 'acceptedValue', 'resolution', 'resolvedAt', 'status', 'validation', 'preparedOutputs', 'lessonDraft'])
-const allowedRootKeys = new Set(['format', 'schemaVersion', 'sourceTool', 'changeSetId', 'createdAt', 'operations'])
+const allowedRootKeys = new Set(['format', 'schemaVersion', 'sourceTool', 'changeSetId', 'createdAt', 'operations', 'contextFingerprint'])
 const allowedOperationKeys = new Set(['operationId', 'section', 'before', 'proposed'])
 
 function hasForbiddenKey(value: unknown): boolean {
@@ -98,16 +105,16 @@ function hasUnknownEnvelopeField(value: unknown): boolean {
     && Object.keys(operation as Record<string, unknown>).some((key) => !allowedOperationKeys.has(key)))
 }
 
-export function importProposalPackage(
+export async function importProposalPackage(
   serialized: string,
   draft: LessonDraft,
   receiveChangeSet: (changeSet: ChangeSet) => ProposalReceipt,
-): ProposalImportResult {
+): Promise<ProposalImportResult> {
   if (serialized.length > MAX_PROPOSAL_PACKAGE_CHARACTERS) return { ok: false, code: 'excessive-size', message: `Proposal packages must be ${MAX_PROPOSAL_PACKAGE_CHARACTERS.toLocaleString()} characters or fewer.` }
   let raw: unknown
   try { raw = JSON.parse(serialized) } catch { return { ok: false, code: 'malformed-json', message: 'Paste a complete valid JSON proposal package.' } }
   if (hasForbiddenKey(raw)) return { ok: false, code: 'forbidden-content', message: 'Proposal packages cannot contain approval, resolution, validation, prepared-output or complete lesson data.' }
-  if (raw && typeof raw === 'object' && !Array.isArray(raw) && (raw as Record<string, unknown>).schemaVersion !== PROPOSAL_PACKAGE_VERSION) return { ok: false, code: 'wrong-version', message: `This application accepts proposal package version ${PROPOSAL_PACKAGE_VERSION} only.` }
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && ![PROPOSAL_PACKAGE_VERSION, TRANSIENT_PROPOSAL_PACKAGE_VERSION].includes((raw as Record<string, unknown>).schemaVersion as 1 | 2)) return { ok: false, code: 'wrong-version', message: `This application accepts proposal package versions ${PROPOSAL_PACKAGE_VERSION} and ${TRANSIENT_PROPOSAL_PACKAGE_VERSION} only.` }
   if (raw && typeof raw === 'object' && !Array.isArray(raw) && !proposalTools.has(String((raw as Record<string, unknown>).sourceTool))) return { ok: false, code: 'unauthorized-section', message: 'The package source tool is not authorized to create portable proposals.' }
   if (hasUnknownEnvelopeField(raw)) return { ok: false, code: 'unknown-field', message: 'The proposal package contains an unknown field.' }
   const parsed = proposalPackageSchema.safeParse(raw)
@@ -123,6 +130,10 @@ export function importProposalPackage(
   const existingIds = new Set([...draft.pendingChanges, ...draft.changeHistory].flatMap((set) => [set.changeSetId, ...set.operations.map(({ operationId }) => operationId)]))
   const incomingIds = [parsed.data.changeSetId, ...parsed.data.operations.map(({ operationId }) => operationId)]
   if (incomingIds.some((id) => existingIds.has(id))) return { ok: false, code: 'duplicate-id', message: 'This proposal package has already been imported or collides with existing proposal history.' }
+  if (parsed.data.schemaVersion === TRANSIENT_PROPOSAL_PACKAGE_VERSION) {
+    const currentFingerprint = await fingerprintTeacherContext(acceptedContextFromDraft(draft))
+    if (currentFingerprint !== parsed.data.contextFingerprint) return { ok: false, code: 'context-mismatch', message: 'The accepted lesson has changed since this proposal was created. Copy fresh accepted context and try again.' }
+  }
   const changeSet = changeSetSchema.parse({
     changeSetId: parsed.data.changeSetId,
     source: 'webmcp-agent',

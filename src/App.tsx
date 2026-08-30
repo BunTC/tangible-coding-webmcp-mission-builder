@@ -7,6 +7,7 @@ import { useLessonStore } from './state/lesson-store'
 import { useWebMcp, type WebMcpStatus } from './webmcp/use-webmcp'
 import { WebMcpStatusIndicator } from './webmcp/webmcp-status'
 import { importProposalPackage, MAX_PROPOSAL_PACKAGE_CHARACTERS } from './domain/lesson-proposal-package'
+import { createTeacherContextPackage } from './domain/lesson-context-package'
 
 const journeySteps = ['Start', 'Class context', 'Resources', 'Build mission', 'Adapt learners', 'Validate', 'Review changes', 'Teacher approval', 'Preview & print']
 const durations = [30, 45, 60, 90] as const
@@ -222,6 +223,7 @@ function ChangeReview({ draft, webMcpStatus, onImport, onResolve }: { draft: Les
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [packageText, setPackageText] = useState('')
   const [importStatus, setImportStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
+  const [copyStatus, setCopyStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
   const activeSetOperations = draft.pendingChanges.flatMap((set) => set.operations.map((operation) => ({ set, operation })))
   const pendingOperations = activeSetOperations.filter(({ operation }) => operation.status === 'pending')
   const resolvedActiveOperations = activeSetOperations.filter(({ operation }) => operation.status !== 'pending')
@@ -236,13 +238,29 @@ function ChangeReview({ draft, webMcpStatus, onImport, onResolve }: { draft: Les
       setErrors((current) => ({ ...current, [operation.operationId]: 'Enter a valid JSON value for this section.' }))
     }
   }
-  const importPackage = () => {
-    const result = onImport(packageText)
+  const importPackage = async () => {
+    const result = await onImport(packageText)
     setImportStatus({ kind: result.ok ? 'success' : 'error', message: result.message })
     if (result.ok) setPackageText('')
   }
+  const copyAcceptedContext = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable in this browser. Check browser clipboard permission and try again.')
+      const contextPackage = await createTeacherContextPackage(draft)
+      await navigator.clipboard.writeText(JSON.stringify(contextPackage))
+      setCopyStatus({ kind: 'success', message: 'Accepted lesson context copied. ChatGPT may use it temporarily to create the next proposal or validation result. Copying does not accept changes, approve the lesson or synchronize browser storage.' })
+    } catch {
+      setCopyStatus({ kind: 'error', message: 'Could not copy the accepted lesson context. Check clipboard permission and try again.' })
+    }
+  }
   return <section className="change-review" aria-labelledby="change-review-title">
     <div className="section-heading"><div><p className="eyebrow">Human change control</p><h3 id="change-review-title">7. Review agent changes</h3></div><span>{pendingOperations.length} pending</span></div>
+    <section className="context-export" aria-labelledby="context-export-title">
+      <h4 id="context-export-title">Continue in ChatGPT</h4>
+      <p id="context-export-warning">Copies only the currently accepted fictional class context, tangible resources, mission and learner adaptations. It does not include pending proposals, review history, validation results, prepared outputs or lesson approval. Review the copied context before sharing it. Do not use pupil names, school details, diagnoses, attainment information or other personal data.</p>
+      <button type="button" className="secondary-button" aria-describedby="context-export-warning" onClick={() => void copyAcceptedContext()}>Copy accepted context for ChatGPT</button>
+      {copyStatus && <p className={copyStatus.kind === 'error' ? 'import-error' : 'import-success'} role="status" aria-live="polite" aria-atomic="true">{copyStatus.message}</p>}
+    </section>
     <section className="proposal-import" aria-labelledby="proposal-import-title">
       <h4 id="proposal-import-title">Import agent proposal</h4>
       <p id="proposal-import-warning"><strong>Untrusted AI proposal.</strong> Import adds pending content for teacher review only. It never accepts or approves lesson content.</p>

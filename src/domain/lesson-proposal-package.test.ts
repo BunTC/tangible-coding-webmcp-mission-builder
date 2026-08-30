@@ -5,6 +5,7 @@ import { createLessonCommandBoundary, persistLessonDraft, restoreLessonDraft } f
 import { createProposalPackage, importProposalPackage, MAX_PROPOSAL_PACKAGE_CHARACTERS, proposalPackageSchema } from './lesson-proposal-package'
 import { createSetClassContextHandler } from '../webmcp/set-class-context'
 import type { LessonDraft } from './lesson-schemas'
+import { acceptedContextFromDraft, fingerprintTeacherContext } from './lesson-context-package'
 
 const now = '2026-08-29T12:00:00.000Z'
 const baseDraft = () => ({ ...createGoldenPathDraft(now), mission: { ...lostStoryPathMission } })
@@ -50,9 +51,9 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-function expectSuccessfulImport(portable: unknown, draft = baseDraft()) {
+async function expectSuccessfulImport(portable: unknown, draft = baseDraft()) {
   const commands = createLessonCommandBoundary(draft, () => undefined)
-  expect(importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: true, operationCount: 1 })
+  expect(await importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: true, operationCount: 1 })
   expect(commands.getDraft().pendingChanges).toHaveLength(1)
   expect(commands.getDraft().classContext).toEqual(draft.classContext)
 }
@@ -71,14 +72,30 @@ function populatedDraft(): LessonDraft {
   }
 }
 
-function expectRejectedWithoutMutation(serialized: string, code: string, draft: LessonDraft = populatedDraft()) {
+async function expectRejectedWithoutMutation(serialized: string, code: string, draft: LessonDraft = populatedDraft()) {
   const snapshot = structuredClone(draft)
   const commands = createLessonCommandBoundary(draft, () => undefined)
-  expect(importProposalPackage(serialized, commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: false, code })
+  expect(await importProposalPackage(serialized, commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: false, code })
   expect(commands.getDraft()).toEqual(snapshot)
 }
 
 describe('portable proposal packages', () => {
+  it('binds version-2 transient proposals to the current accepted context while retaining version 1', async () => {
+    const draft = baseDraft()
+    const set = createPendingChangeSet(draft, 'set_class_context', [{ section: 'class-context', before: draft.classContext, proposed: { ...draft.classContext, classSize: 20 } }], { changeSetId: 'v2-set', operationIds: ['v2-operation'], createdAt: now })
+    const fingerprint = await fingerprintTeacherContext(acceptedContextFromDraft(draft))
+    const v2 = createProposalPackage(set, fingerprint)
+    expect(v2).toMatchObject({ schemaVersion: 2, contextFingerprint: fingerprint })
+    const matchingCommands = createLessonCommandBoundary(draft, () => undefined)
+    expect(await importProposalPackage(JSON.stringify(v2), matchingCommands.getDraft(), matchingCommands.receiveChangeSet)).toMatchObject({ ok: true })
+    const changed = { ...draft, resources: { ...draft.resources, robots: 1 } }
+    const snapshot = structuredClone(changed)
+    const changedCommands = createLessonCommandBoundary(changed, () => undefined)
+    expect(await importProposalPackage(JSON.stringify(v2), changedCommands.getDraft(), changedCommands.receiveChangeSet)).toMatchObject({ ok: false, code: 'context-mismatch' })
+    expect(changedCommands.getDraft()).toEqual(snapshot)
+    expect(createProposalPackage(set)).toMatchObject({ schemaVersion: 1 })
+  })
+
   it('uses a strict versioned pending-only format with structural revision evidence', () => {
     const { package: portable } = packagedClassProposal()
     expect(portable).toEqual({
@@ -88,10 +105,10 @@ describe('portable proposal packages', () => {
     expect(JSON.stringify(portable)).not.toMatch(/approvedAt|preparedOutputs|validation|acceptedValue|lessonDraft/)
   })
 
-  it('imports one proposal through the synchronous boundary without changing accepted content', () => {
+  it('imports one proposal through the receipt boundary without changing accepted content', async () => {
     const { draft, package: portable } = packagedClassProposal()
     const commands = createLessonCommandBoundary(draft, () => undefined)
-    const result = importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)
+    const result = await importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)
     expect(result).toMatchObject({ ok: true, changeSetId: 'portable-set', operationCount: 1 })
     expect(commands.getDraft().pendingChanges).toHaveLength(1)
     expect(commands.getDraft().classContext).toEqual(draft.classContext)
@@ -100,11 +117,11 @@ describe('portable proposal packages', () => {
     expect(commands.getDraft().validation.preparedOutputs).toEqual([])
   })
 
-  it('imports the exact production package with ChatGPT-reordered nested keys', () => {
-    expectSuccessfulImport(productionPackage, createCleanDraft(now))
+  it('imports the exact production package with ChatGPT-reordered nested keys', async () => {
+    await expectSuccessfulImport(productionPackage, createCleanDraft(now))
   })
 
-  it('accepts semantically identical packages regardless of object-key order', () => {
+  it('accepts semantically identical packages regardless of object-key order', async () => {
     const canonical = packagedClassProposal().package
     const operation = canonical.operations[0]
     const alphabeticalRoot = orderedRecord(canonical, ['changeSetId', 'createdAt', 'format', 'operations', 'schemaVersion', 'sourceTool'])
@@ -116,11 +133,11 @@ describe('portable proposal packages', () => {
     const reversedNested = { ...canonical, operations: [{ ...operation, before: orderedRecord(record(operation.before), reversedContextKeys), proposed: orderedRecord(record(operation.proposed), reversedContextKeys) }] }
 
     for (const portable of [canonical, alphabeticalRoot, reversedRoot, { ...canonical, operations: [reorderedOperation] }, alphabeticalNested, reversedNested]) {
-      expectSuccessfulImport(portable)
+      await expectSuccessfulImport(portable)
     }
   })
 
-  it('moves a proposal between two isolated browser storage contexts', () => {
+  it('moves a proposal between two isolated browser storage contexts', async () => {
     const agentStorage = storage()
     const teacherStorage = storage()
     const agentCommands = createLessonCommandBoundary(baseDraft(), (draft) => persistLessonDraft(agentStorage, draft))
@@ -130,7 +147,7 @@ describe('portable proposal packages', () => {
     if (!result.ok) throw new Error('Expected proposal creation')
     const teacherCommands = createLessonCommandBoundary(baseDraft(), (draft) => persistLessonDraft(teacherStorage, draft))
     expect(restoreLessonDraft(teacherStorage).pendingChanges).toEqual([])
-    expect(importProposalPackage(JSON.stringify(result.proposalPackage), teacherCommands.getDraft(), teacherCommands.receiveChangeSet).ok).toBe(true)
+    expect((await importProposalPackage(JSON.stringify(result.proposalPackage), teacherCommands.getDraft(), teacherCommands.receiveChangeSet)).ok).toBe(true)
     const restoredTeacher = restoreLessonDraft(teacherStorage)
     expect(restoredTeacher.pendingChanges).toHaveLength(1)
     expect(restoredTeacher.classContext.classSize).toBe(24)
@@ -139,7 +156,7 @@ describe('portable proposal packages', () => {
 
   it.each([
     ['malformed JSON', '{', 'malformed-json'],
-    ['wrong version', JSON.stringify({ ...packagedClassProposal().package, schemaVersion: 2 }), 'wrong-version'],
+    ['wrong version', JSON.stringify({ ...packagedClassProposal().package, schemaVersion: 3 }), 'wrong-version'],
     ['unknown root field', JSON.stringify({ ...packagedClassProposal().package, surprise: true }), 'unknown-field'],
     ['unknown operation field', JSON.stringify({ ...packagedClassProposal().package, operations: [{ ...packagedClassProposal().package.operations[0], surprise: true }] }), 'unknown-field'],
     ['invalid section value', JSON.stringify({ ...packagedClassProposal().package, operations: [{ ...packagedClassProposal().package.operations[0], proposed: { ...baseDraft().classContext, classSize: 999 } }] }), 'invalid-package'],
@@ -151,61 +168,61 @@ describe('portable proposal packages', () => {
     ['forbidden complete draft', JSON.stringify({ ...packagedClassProposal().package, lessonDraft: baseDraft() }), 'forbidden-content'],
     ['unauthorized tool', JSON.stringify({ ...packagedClassProposal().package, sourceTool: 'validate_and_prepare_lesson' }), 'unauthorized-section'],
     ['unauthorized section', JSON.stringify({ ...packagedClassProposal().package, operations: [{ ...packagedClassProposal().package.operations[0], section: 'mission-story', before: '', proposed: 'story' }] }), 'unauthorized-section'],
-  ])('rejects %s safely', (_label, serialized, code) => {
-    expectRejectedWithoutMutation(serialized, code)
+  ])('rejects %s safely', async (_label, serialized, code) => {
+    await expectRejectedWithoutMutation(serialized, code)
   })
 
-  it('rejects excessive size before parsing', () => {
-    expectRejectedWithoutMutation('x'.repeat(MAX_PROPOSAL_PACKAGE_CHARACTERS + 1), 'excessive-size')
+  it('rejects excessive size before parsing', async () => {
+    await expectRejectedWithoutMutation('x'.repeat(MAX_PROPOSAL_PACKAGE_CHARACTERS + 1), 'excessive-size')
   })
 
-  it('rejects stale before values, ID collisions and re-imports without partial mutation', () => {
+  it('rejects stale before values, ID collisions and re-imports without partial mutation', async () => {
     const { package: portable } = packagedClassProposal()
     const stale = { ...portable, operations: [{ ...portable.operations[0], before: { ...portable.operations[0].before as object, classSize: 12 } }] }
-    expectRejectedWithoutMutation(JSON.stringify(stale), 'stale-state')
+    await expectRejectedWithoutMutation(JSON.stringify(stale), 'stale-state')
     const draft = populatedDraft()
     const commands = createLessonCommandBoundary(draft, () => undefined)
-    expect(importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet).ok).toBe(true)
+    expect((await importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)).ok).toBe(true)
     const afterFirstImport = structuredClone(commands.getDraft())
-    expect(importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: false, code: 'duplicate-id' })
+    expect(await importProposalPackage(JSON.stringify(portable), commands.getDraft(), commands.receiveChangeSet)).toMatchObject({ ok: false, code: 'duplicate-id' })
     expect(commands.getDraft()).toEqual(afterFirstImport)
   })
 
-  it('rejects duplicate operations and strictly rejects extra section-value fields', () => {
+  it('rejects duplicate operations and strictly rejects extra section-value fields', async () => {
     const { package: portable } = packagedClassProposal()
     const duplicateSections = { ...portable, operations: [portable.operations[0], { ...portable.operations[0], operationId: 'second-operation' }] }
     expect(proposalPackageSchema.safeParse(duplicateSections).success).toBe(false)
-    expectRejectedWithoutMutation(JSON.stringify(duplicateSections), 'duplicate-id')
+    await expectRejectedWithoutMutation(JSON.stringify(duplicateSections), 'duplicate-id')
     const duplicateIdentity = { ...portable, operations: [{ ...portable.operations[0], operationId: portable.changeSetId }] }
     expect(proposalPackageSchema.safeParse(duplicateIdentity).success).toBe(false)
-    expectRejectedWithoutMutation(JSON.stringify(duplicateIdentity), 'duplicate-id')
+    await expectRejectedWithoutMutation(JSON.stringify(duplicateIdentity), 'duplicate-id')
     const unknownValueField = { ...portable, operations: [{ ...portable.operations[0], proposed: { ...portable.operations[0].proposed as object, unauthorized: true } }] }
     expect(proposalPackageSchema.safeParse(unknownValueField).success).toBe(false)
-    expectRejectedWithoutMutation(JSON.stringify(unknownValueField), 'unknown-field')
+    await expectRejectedWithoutMutation(JSON.stringify(unknownValueField), 'unknown-field')
     const unknownBeforeField = { ...portable, operations: [{ ...portable.operations[0], before: { ...portable.operations[0].before as object, unauthorized: true } }] }
     expect(proposalPackageSchema.safeParse(unknownBeforeField).success).toBe(false)
-    expectRejectedWithoutMutation(JSON.stringify(unknownBeforeField), 'unknown-field')
+    await expectRejectedWithoutMutation(JSON.stringify(unknownBeforeField), 'unknown-field')
   })
 
-  it('preserves primitive types, primitive values and array order exactly', () => {
+  it('preserves primitive types, primitive values and array order exactly', async () => {
     const { package: portable } = packagedClassProposal()
     const alteredPrimitive = { ...portable, operations: [{ ...portable.operations[0], before: { ...record(portable.operations[0].before), classSize: 23 } }] }
-    expectRejectedWithoutMutation(JSON.stringify(alteredPrimitive), 'stale-state')
+    await expectRejectedWithoutMutation(JSON.stringify(alteredPrimitive), 'stale-state')
     const alteredType = { ...portable, operations: [{ ...portable.operations[0], before: { ...record(portable.operations[0].before), classSize: '24' } }] }
-    expectRejectedWithoutMutation(JSON.stringify(alteredType), 'invalid-package')
+    await expectRejectedWithoutMutation(JSON.stringify(alteredType), 'invalid-package')
 
     const draft: LessonDraft = { ...populatedDraft(), classContext: { ...populatedDraft().classContext, learningFocus: ['debugging', 'sequencing'] } }
     const reorderedArray = { ...portable, operations: [{ ...portable.operations[0], before: { ...draft.classContext, learningFocus: ['sequencing', 'debugging'] } }] }
-    expectRejectedWithoutMutation(JSON.stringify(reorderedArray), 'stale-state', draft)
+    await expectRejectedWithoutMutation(JSON.stringify(reorderedArray), 'stale-state', draft)
   })
 
-  it.each(['__proto__', 'constructor', 'prototype'])('rejects hostile %s keys without changing object prototypes', (key) => {
+  it.each(['__proto__', 'constructor', 'prototype'])('rejects hostile %s keys without changing object prototypes', async (key) => {
     for (const level of ['root', 'operation', 'proposed'] as const) {
       const portable = structuredClone(packagedClassProposal().package) as Record<string, unknown>
       const operations = portable.operations as Array<Record<string, unknown>>
       const target = level === 'root' ? portable : level === 'operation' ? operations[0] : operations[0].proposed as Record<string, unknown>
       Object.defineProperty(target, key, { configurable: true, enumerable: true, value: { polluted: true } })
-      expectRejectedWithoutMutation(JSON.stringify(portable), 'unknown-field')
+      await expectRejectedWithoutMutation(JSON.stringify(portable), 'unknown-field')
     }
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
     expect(Object.prototype).not.toHaveProperty('polluted')

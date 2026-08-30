@@ -56,7 +56,7 @@ describe('validate_and_prepare_lesson WebMCP handler', () => {
     expect(descriptor?.inputSchema).toBe(validateAndPrepareLessonJsonSchema)
     expect(validateAndPrepareLessonJsonSchema).toEqual({
       type: 'object', additionalProperties: false,
-      properties: { runMode: { type: 'string', description: 'Validation run mode.', enum: ['validate', 'validate-and-prepare'] } },
+      properties: { runMode: { type: 'string', description: 'Validation run mode.', enum: ['validate', 'validate-and-prepare'] }, teacherContext: { type: 'string', description: 'Optional serialized teacher-accepted context package for transient use.', maxLength: 20000 } },
       required: ['runMode'],
     })
     expect(validateAndPrepareLessonInputSchema.safeParse({ runMode: 'validate' }).success).toBe(true)

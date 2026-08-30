@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { LessonStoreProvider } from './state/lesson-store'
 import { createGoldenPathDraft, lostStoryPathMission } from './domain/lesson-factories'
@@ -568,7 +568,7 @@ describe('Step 7 human change review', () => {
     expect(field).not.toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('imports an untrusted portable proposal for review without accepting it', () => {
+  it('imports an untrusted portable proposal for review without accepting it', async () => {
     const draft = createGoldenPathDraft('2026-08-29T10:00:00.000Z')
     window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
     const set = createPendingChangeSet(draft, 'set_class_context', [{ section: 'class-context', before: draft.classContext, proposed: { ...draft.classContext, classSize: 19 } }], { changeSetId: 'import-ui-set', operationIds: ['import-ui-operation'], createdAt: '2026-08-29T12:00:00.000Z' })
@@ -576,7 +576,7 @@ describe('Step 7 human change review', () => {
     expect(screen.getByText(/Untrusted AI proposal/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Proposal package JSON'), { target: { value: JSON.stringify(createProposalPackage(set)) } })
     fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
-    expect(screen.getByText(/Imported proposal import-ui-set for teacher review/)).toBeInTheDocument()
+    expect(await screen.findByText(/Imported proposal import-ui-set for teacher review/)).toBeInTheDocument()
     expect(screen.getByText('1 proposal operation requires teacher review.')).toBeInTheDocument()
     expect(screen.getByLabelText('Class size')).toHaveValue(24)
     expect(screen.getByRole('button', { name: 'Accept class-context' })).toBeEnabled()
@@ -587,17 +587,60 @@ describe('Step 7 human change review', () => {
     expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('class-context: rejected')
   })
 
-  it('shows a linked safe error for an invalid portable package', () => {
+  it('shows a linked safe error for an invalid portable package', async () => {
     renderApp()
     const field = screen.getByLabelText('Proposal package JSON')
     fireEvent.change(field, { target: { value: '{invalid' } })
     fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
-    expect(screen.getByText('Paste a complete valid JSON proposal package.')).toBeInTheDocument()
+    expect(await screen.findByText('Paste a complete valid JSON proposal package.')).toBeInTheDocument()
     expect(field).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('No proposal operations require review.')).toBeInTheDocument()
   })
 
-  it('renders hostile proposal strings as inert review text', () => {
+  it('copies accepted context only after the accessible teacher action and reports success', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const draft = createGoldenPathDraft('2026-08-30T12:00:00.000Z')
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    renderApp()
+    const button = screen.getByRole('button', { name: 'Copy accepted context for ChatGPT' })
+    expect(button).toHaveAttribute('aria-describedby', 'context-export-warning')
+    expect(screen.getByText(/Copies only the currently accepted fictional class context/)).toBeInTheDocument()
+    fireEvent.click(button)
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce())
+    const copied = JSON.parse(writeText.mock.calls[0][0])
+    expect(copied).toMatchObject({ format: 'tangible-coding-teacher-context', schemaVersion: 1, classContext: draft.classContext })
+    expect(JSON.stringify(copied)).not.toMatch(/pendingChanges|changeHistory|validation|approvedAt/)
+    expect(screen.getByText(/Accepted lesson context copied\. ChatGPT may use it temporarily/)).toHaveAttribute('role', 'status')
+  })
+
+  it.each(['complete serialized context', 'unique sensitive marker'] as const)('reports a fixed clipboard failure without leaking %s or changing state', async (failureMode) => {
+    const sensitiveMarker = 'SENSITIVE-CLIPBOARD-REJECTION-MARKER'
+    const writeText = vi.fn((serialized: string) => Promise.reject(new Error(failureMode === 'complete serialized context' ? serialized : sensitiveMarker)))
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const draft = createGoldenPathDraft('2026-08-30T12:00:00.000Z')
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    renderApp()
+    const importField = screen.getByLabelText('Proposal package JSON')
+    fireEvent.change(importField, { target: { value: 'existing import text' } })
+    const before = JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy accepted context for ChatGPT' }))
+    expect(await screen.findByText('Could not copy the accepted lesson context. Check clipboard permission and try again.')).toHaveAttribute('role', 'status')
+    expect(writeText).toHaveBeenCalledOnce()
+    const serialized = writeText.mock.calls[0][0]
+    expect(document.body.textContent).not.toContain(serialized)
+    expect(document.body.textContent).not.toContain(sensitiveMarker)
+    expect(consoleLog).not.toHaveBeenCalled()
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(importField).toHaveValue('existing import text')
+    expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(before)
+    consoleLog.mockRestore()
+    consoleError.mockRestore()
+  })
+
+  it('renders hostile proposal strings as inert review text', async () => {
     const draft = createGoldenPathDraft('2026-08-29T10:00:00.000Z')
     window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
     const hostile = '<img src=x onerror="globalThis.__proposalExecuted=true"><script>globalThis.__proposalExecuted=true</script> javascript:alert(1) onclick="alert(1)"'
@@ -605,6 +648,7 @@ describe('Step 7 human change review', () => {
     renderApp()
     fireEvent.change(screen.getByLabelText('Proposal package JSON'), { target: { value: JSON.stringify(createProposalPackage(set)) } })
     fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
+    await screen.findByText(/Imported proposal hostile-ui-set for teacher review/)
     expect(screen.getAllByText((content) => content.includes('<img src=x onerror=') && content.includes('<script>'))).not.toHaveLength(0)
     expect(document.querySelector('.change-review script')).toBeNull()
     expect(document.querySelector('.change-review img')).toBeNull()

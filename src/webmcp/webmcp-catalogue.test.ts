@@ -20,7 +20,7 @@ const expectedSchemas = {
   },
   select_tangible_resources: {
     type: 'object', additionalProperties: false,
-    properties: { robots: integer('Available robots.', 0, 12), tileSets: integer('Available tile sets.', 0, 30), activityMats: integer('Available activity mats.', 0, 12), instructionCardPacks: integer('Available instruction-card packs.', 0, 12), roleCards: integer('Optional available pupil role cards.', 0, 40), allowTileOnlyGroups: { type: 'boolean', description: 'Whether tile-only stations are allowed.' } },
+    properties: { robots: integer('Available robots.', 0, 12), tileSets: integer('Available tile sets.', 0, 30), activityMats: integer('Available activity mats.', 0, 12), instructionCardPacks: integer('Available instruction-card packs.', 0, 12), roleCards: integer('Optional available pupil role cards.', 0, 40), allowTileOnlyGroups: { type: 'boolean', description: 'Whether tile-only stations are allowed.' }, teacherContext: text('Optional serialized teacher-accepted context package for transient use.', 20000) },
     required: ['robots', 'tileSets', 'activityMats', 'instructionCardPacks', 'allowTileOnlyGroups'],
   },
   build_tangible_mission: {
@@ -29,17 +29,17 @@ const expectedSchemas = {
       title: text('Mission title.', 100), theme: text('Mission theme.', 160), challengeLevel: enumString('Challenge level.', ['introductory', 'core', 'stretch']), learningIntention: text('Learning intention.', 240),
       successCriteria: { type: 'array', description: 'Observable success criteria.', items: text('One success criterion.', 180), minItems: 2, maxItems: 4 }, missionStory: text('Mission story or problem.', 700),
       plan: text('Plan stage content.', 500), planDurationMinutes: integer('Plan stage minutes.', 1), buildAndExplain: text('Build and Explain content.', 500), buildAndExplainDurationMinutes: integer('Build and Explain minutes.', 1), testAndDebug: text('Test and Debug content.', 500), testAndDebugDurationMinutes: integer('Test and Debug minutes.', 1), reflectAndImprove: text('Reflect and Improve content.', 500), reflectAndImproveDurationMinutes: integer('Reflect and Improve minutes.', 1),
-      assessmentEvidence: { type: 'array', description: 'Observable assessment evidence.', items: text('One evidence statement.', 180), minItems: 1, maxItems: 5 },
+      assessmentEvidence: { type: 'array', description: 'Observable assessment evidence.', items: text('One evidence statement.', 180), minItems: 1, maxItems: 5 }, teacherContext: text('Optional serialized teacher-accepted context package for transient use.', 20000),
     }, required: ['title', 'theme', 'challengeLevel', 'learningIntention', 'successCriteria', 'missionStory', 'plan', 'planDurationMinutes', 'buildAndExplain', 'buildAndExplainDurationMinutes', 'testAndDebug', 'testAndDebugDurationMinutes', 'reflectAndImprove', 'reflectAndImproveDurationMinutes', 'assessmentEvidence'],
   },
   adapt_for_learners: {
     type: 'object', additionalProperties: false,
     properties: {
       supports: { type: 'array', description: 'Selected support approaches.', items: enumString('One support approach.', ['reduced-reading', 'visual-instructions', 'fewer-steps', 'additional-time', 'paired-explanation', 'predictable-roles']) }, extensions: { type: 'array', description: 'Selected extension approaches.', items: enumString('One extension approach.', ['longer-route', 'extra-debugging-fault', 'loop-challenge', 'compare-solutions', 'design-new-mission']) }, supportInstructions: text('Learner-support instructions.', 500), extensionInstructions: text('Extension-challenge instructions.', 500),
-      sectionsToUpdate: { type: 'array', description: 'Named sections to propose.', uniqueItems: true, items: enumString('One authorised section.', [...cycleNames, 'learner-support', 'extension-challenge']) }, cycleSections: { type: 'array', description: 'Matching cycle-section payloads.', uniqueItems: true, items: { type: 'object', additionalProperties: false, properties: { section: enumString('Cycle section name.', cycleNames), content: text('Cycle section content.', 500), durationMinutes: integer('Cycle section minutes.', 1) }, required: ['section', 'content', 'durationMinutes'] } },
+      sectionsToUpdate: { type: 'array', description: 'Named sections to propose.', uniqueItems: true, items: enumString('One authorised section.', [...cycleNames, 'learner-support', 'extension-challenge']) }, cycleSections: { type: 'array', description: 'Matching cycle-section payloads.', uniqueItems: true, items: { type: 'object', additionalProperties: false, properties: { section: enumString('Cycle section name.', cycleNames), content: text('Cycle section content.', 500), durationMinutes: integer('Cycle section minutes.', 1) }, required: ['section', 'content', 'durationMinutes'] } }, teacherContext: text('Optional serialized teacher-accepted context package for transient use.', 20000),
     }, required: ['supports', 'extensions', 'supportInstructions', 'extensionInstructions', 'sectionsToUpdate', 'cycleSections'],
   },
-  validate_and_prepare_lesson: { type: 'object', additionalProperties: false, properties: { runMode: enumString('Validation run mode.', ['validate', 'validate-and-prepare']) }, required: ['runMode'] },
+  validate_and_prepare_lesson: { type: 'object', additionalProperties: false, properties: { runMode: enumString('Validation run mode.', ['validate', 'validate-and-prepare']), teacherContext: text('Optional serialized teacher-accepted context package for transient use.', 20000) }, required: ['runMode'] },
 } as const
 
 const expectedMetadata = {

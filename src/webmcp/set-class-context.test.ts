@@ -91,6 +91,7 @@ describe('set_class_context WebMCP handler', () => {
   it('rejects unknown input properties rather than silently accepting them', () => {
     const { handler, getDraft, original } = harness()
     expect(handler({ ...input, approval: true }, { signal: signal() })).toMatchObject({ ok: false, error: { code: 'invalid-input' }, stateChanged: false })
+    expect(handler({ ...input, teacherContext: '{}' }, { signal: signal() })).toMatchObject({ ok: false, error: { code: 'invalid-input' }, stateChanged: false })
     expect(getDraft()).toEqual(original)
   })
 

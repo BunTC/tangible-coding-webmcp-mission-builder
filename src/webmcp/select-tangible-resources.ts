@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { calculateGrouping } from '../domain/lesson-factories'
 import { createPendingChangeSet, getSectionValue } from '../domain/lesson-change-control'
 import { classContextSchema, resourceInventorySchema, type ChangeSet, type LessonDraft, type ResourceInventory } from '../domain/lesson-schemas'
@@ -5,10 +6,11 @@ import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
 import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
+import { parseTeacherContextPackage } from '../domain/lesson-context-package'
 
 export const selectTangibleResourcesInputSchema = resourceInventorySchema
   .omit({ roleCards: true })
-  .extend({ roleCards: resourceInventorySchema.shape.roleCards.optional() })
+  .extend({ roleCards: resourceInventorySchema.shape.roleCards.optional(), teacherContext: z.string().optional() })
   .strict()
 
 export const selectTangibleResourcesJsonSchema = {
@@ -20,6 +22,7 @@ export const selectTangibleResourcesJsonSchema = {
     instructionCardPacks: { type: 'integer', description: 'Available instruction-card packs.', minimum: 0, maximum: 12 },
     roleCards: { type: 'integer', description: 'Optional available pupil role cards.', minimum: 0, maximum: 40 },
     allowTileOnlyGroups: { type: 'boolean', description: 'Whether tile-only stations are allowed.' },
+    teacherContext: { type: 'string', description: 'Optional serialized teacher-accepted context package for transient use.', maxLength: 20000 },
   },
   required: ['robots', 'tileSets', 'activityMats', 'instructionCardPacks', 'allowTileOnlyGroups'],
 } as const
@@ -35,7 +38,9 @@ export type SelectTangibleResourcesSuccess = {
   suggestedGrouping: LessonDraft['groupingPlan']
   resourceWarnings: string[]
   proposalPackage: ProposalPackage
-  stateChanged: true
+  stateChanged: boolean
+  delivery?: 'portable-package-only'
+  usedContextFingerprint?: string
 }
 
 export interface SelectTangibleResourcesDependencies {
@@ -48,15 +53,20 @@ export interface SelectTangibleResourcesDependencies {
 const failure = (code: ExpectedToolErrorCode, message: string): ToolFailure => ({ ok: false, error: { code, message }, stateChanged: false })
 
 export function createSelectTangibleResourcesHandler(dependencies: SelectTangibleResourcesDependencies) {
-  return (input: unknown, context?: WebMcpExecutionContext): SelectTangibleResourcesSuccess | ToolFailure => {
+  const execute = (parsedInput: z.infer<typeof selectTangibleResourcesInputSchema>, draft: LessonDraft, context: WebMcpExecutionContext | undefined, contextFingerprint?: string): SelectTangibleResourcesSuccess | ToolFailure => {
+    const resourceInput = {
+      robots: parsedInput.robots,
+      tileSets: parsedInput.tileSets,
+      activityMats: parsedInput.activityMats,
+      instructionCardPacks: parsedInput.instructionCardPacks,
+      roleCards: parsedInput.roleCards,
+      allowTileOnlyGroups: parsedInput.allowTileOnlyGroups,
+    }
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
-    const parsed = selectTangibleResourcesInputSchema.safeParse(input)
-    if (!parsed.success) return failure('invalid-input', 'Resource inventory is invalid. Check equipment quantities and permitted fields.')
-    const draft = dependencies.getDraft()
     if (!classContextSchema.safeParse(draft.classContext).success) return failure('prerequisite-failed', 'A valid accepted class context is required before proposing resources.')
     if (!resourceInventorySchema.safeParse(draft.resources).success) return failure('prerequisite-failed', 'The current accepted resource inventory is unavailable. Restore a valid lesson draft before proposing changes.')
-    const roleCards = parsed.data.roleCards === undefined ? draft.resources.roleCards : parsed.data.roleCards
-    const proposedInventory = resourceInventorySchema.parse({ ...parsed.data, roleCards })
+    const roleCards = resourceInput.roleCards === undefined ? draft.resources.roleCards : resourceInput.roleCards
+    const proposedInventory = resourceInventorySchema.parse({ ...resourceInput, roleCards })
     const suggestedGrouping = calculateGrouping(draft.classContext, proposedInventory)
     const changeSetId = dependencies.createId()
     const operationId = dependencies.createId()
@@ -70,8 +80,10 @@ export function createSelectTangibleResourcesHandler(dependencies: SelectTangibl
       throw error
     }
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
-    const receipt = dependencies.receiveChangeSet(proposal)
-    if (!receipt.ok) return failure(receipt.code, receipt.message)
+    if (!contextFingerprint) {
+      const receipt = dependencies.receiveChangeSet(proposal)
+      if (!receipt.ok) return failure(receipt.code, receipt.message)
+    }
     return {
       ok: true,
       tool: 'select_tangible_resources',
@@ -79,11 +91,21 @@ export function createSelectTangibleResourcesHandler(dependencies: SelectTangibl
       operationId,
       section: 'tangible-resources',
       proposedInventory,
-      roleCards: parsed.data.roleCards === undefined ? 'preserved' : 'provided',
+      roleCards: resourceInput.roleCards === undefined ? 'preserved' : 'provided',
       suggestedGrouping,
       resourceWarnings: suggestedGrouping.warnings,
-      proposalPackage: createProposalPackage(proposal),
-      stateChanged: true,
+      proposalPackage: createProposalPackage(proposal, contextFingerprint),
+      stateChanged: !contextFingerprint,
+      ...(contextFingerprint ? { delivery: 'portable-package-only' as const, usedContextFingerprint: contextFingerprint } : {}),
     }
+  }
+  return (input: unknown, context?: WebMcpExecutionContext): SelectTangibleResourcesSuccess | ToolFailure => {
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+    const parsed = selectTangibleResourcesInputSchema.safeParse(input)
+    if (!parsed.success) return failure('invalid-input', 'Resource inventory is invalid. Check equipment quantities and permitted fields.')
+    if (!parsed.data.teacherContext) return execute(parsed.data, dependencies.getDraft(), context)
+    return parseTeacherContextPackage(parsed.data.teacherContext).then((teacherContext) => teacherContext.ok
+      ? execute(parsed.data, teacherContext.draft, context, teacherContext.package.contextFingerprint)
+      : failure('invalid-input', teacherContext.message)) as unknown as SelectTangibleResourcesSuccess | ToolFailure
   }
 }

@@ -53,11 +53,11 @@ describe('adapt_for_learners WebMCP handler', () => {
     expect(commands.getDraft().approvedAt).toBeUndefined()
   })
 
-  it('shares the exact six-field canonical descriptor and excludes resource authority', () => {
+  it('shares the canonical descriptor with optional teacher context and excludes resource authority', () => {
     const descriptor = WEBMCP_TOOL_CATALOGUE.find(({ name }) => name === 'adapt_for_learners')
     expect(descriptor?.inputSchema).toBe(adaptForLearnersJsonSchema)
-    expect(Object.keys(adaptForLearnersJsonSchema.properties)).toEqual(['supports', 'extensions', 'supportInstructions', 'extensionInstructions', 'sectionsToUpdate', 'cycleSections'])
-    expect(adaptForLearnersJsonSchema.required).toEqual(Object.keys(adaptForLearnersJsonSchema.properties))
+    expect(Object.keys(adaptForLearnersJsonSchema.properties)).toEqual(['supports', 'extensions', 'supportInstructions', 'extensionInstructions', 'sectionsToUpdate', 'cycleSections', 'teacherContext'])
+    expect(adaptForLearnersJsonSchema.required).toEqual(['supports', 'extensions', 'supportInstructions', 'extensionInstructions', 'sectionsToUpdate', 'cycleSections'])
     expect(adaptForLearnersInputSchema.safeParse(input).success).toBe(true)
     for (const unauthorized of [
       { roleCards: 24 }, { robots: 3 }, { resources: {} }, { noAdditionalAdaptation: true },

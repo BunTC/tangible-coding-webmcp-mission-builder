@@ -5,6 +5,7 @@ import type { ProposalReceiptResult } from '../state/lesson-state'
 import type { ExpectedToolErrorCode, ToolFailure } from './set-class-context'
 import { isWebMcpInvocationAborted } from './webmcp-execution'
 import { createProposalPackage, type ProposalPackage } from '../domain/lesson-proposal-package'
+import { parseTeacherContextPackage } from '../domain/lesson-context-package'
 
 const cycleSections = ['plan', 'build-and-explain', 'test-and-debug', 'reflect-and-improve'] as const
 export const ADAPTATION_SECTION_ORDER = [...cycleSections, 'learner-support', 'extension-challenge'] as const satisfies readonly LessonSection[]
@@ -19,6 +20,7 @@ export const adaptForLearnersInputSchema = z.object({
   extensionInstructions: adaptationPlanSchema.shape.extensionInstructions,
   sectionsToUpdate: z.array(adaptationSectionSchema).refine((sections) => new Set(sections).size === sections.length, 'Sections to update must be unique.'),
   cycleSections: z.array(cyclePayloadSchema),
+  teacherContext: z.string().optional(),
 }).strict().superRefine((input, context) => {
   const payloadNames = input.cycleSections.map(({ section }) => section)
   if (new Set(payloadNames).size !== payloadNames.length) context.addIssue({ code: 'custom', path: ['cycleSections'], message: 'Cycle-section payloads must be unique.' })
@@ -40,6 +42,7 @@ export const adaptForLearnersJsonSchema = {
     supportInstructions: text('Learner-support instructions.', 500), extensionInstructions: text('Extension-challenge instructions.', 500),
     sectionsToUpdate: { type: 'array', description: 'Named sections to propose.', uniqueItems: true, items: enumString('One authorised section.', ADAPTATION_SECTION_ORDER) },
     cycleSections: { type: 'array', description: 'Matching cycle-section payloads.', uniqueItems: true, items: { type: 'object', additionalProperties: false, properties: { section: enumString('Cycle section name.', cycleNames), content: text('Cycle section content.', 500), durationMinutes: { type: 'integer', description: 'Cycle section minutes.', minimum: 1 } }, required: ['section', 'content', 'durationMinutes'] } },
+    teacherContext: text('Optional serialized teacher-accepted context package for transient use.', 20000),
   },
   required: ['supports', 'extensions', 'supportInstructions', 'extensionInstructions', 'sectionsToUpdate', 'cycleSections'],
 } as const
@@ -52,7 +55,9 @@ export type AdaptForLearnersSuccess = {
   operationIds: string[]
   sections: LessonSection[]
   proposalPackage: ProposalPackage
-  stateChanged: true
+  stateChanged: boolean
+  delivery?: 'portable-package-only'
+  usedContextFingerprint?: string
 }
 
 export interface AdaptForLearnersDependencies {
@@ -77,14 +82,11 @@ function proposedOperations(draft: LessonDraft, input: AdaptationInput): Propose
 }
 
 export function createAdaptForLearnersHandler(dependencies: AdaptForLearnersDependencies) {
-  return (input: unknown, context?: WebMcpExecutionContext): AdaptForLearnersSuccess | ToolFailure => {
+  const execute = (adaptation: AdaptationInput, draft: LessonDraft, context: WebMcpExecutionContext | undefined, contextFingerprint?: string): AdaptForLearnersSuccess | ToolFailure => {
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
-    const parsed = adaptForLearnersInputSchema.safeParse(input)
-    if (!parsed.success) return failure('invalid-input', 'Learner adaptations are invalid. Check the named sections, matching cycle payloads and instruction limits.')
-    if (parsed.data.sectionsToUpdate.length === 0) return failure('invalid-input', 'Select at least one authorised section to propose for adaptation.')
-    const draft = dependencies.getDraft()
+    if (adaptation.sectionsToUpdate.length === 0) return failure('invalid-input', 'Select at least one authorised section to propose for adaptation.')
     if (!missionContentSchema.safeParse(draft.mission).success || !draft.mission.title.trim()) return failure('prerequisite-failed', 'An accepted mission is required before proposing learner adaptations.')
-    const operations = proposedOperations(draft, parsed.data)
+    const operations = proposedOperations(draft, adaptation)
     const changeSetId = dependencies.createId()
     const operationIds = operations.map(() => dependencies.createId())
     let proposal: ChangeSet
@@ -95,8 +97,20 @@ export function createAdaptForLearnersHandler(dependencies: AdaptForLearnersDepe
       throw error
     }
     if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
-    const receipt = dependencies.receiveChangeSet(proposal)
-    if (!receipt.ok) return failure(receipt.code, receipt.message)
-    return { ok: true, tool: 'adapt_for_learners', changeSetId, operationIds, sections: operations.map(({ section }) => section), proposalPackage: createProposalPackage(proposal), stateChanged: true }
+    if (!contextFingerprint) {
+      const receipt = dependencies.receiveChangeSet(proposal)
+      if (!receipt.ok) return failure(receipt.code, receipt.message)
+    }
+    return { ok: true, tool: 'adapt_for_learners', changeSetId, operationIds, sections: operations.map(({ section }) => section), proposalPackage: createProposalPackage(proposal, contextFingerprint), stateChanged: !contextFingerprint, ...(contextFingerprint ? { delivery: 'portable-package-only' as const, usedContextFingerprint: contextFingerprint } : {}) }
+  }
+  return (input: unknown, context?: WebMcpExecutionContext): AdaptForLearnersSuccess | ToolFailure => {
+    if (isWebMcpInvocationAborted(context)) return failure('aborted', 'The tool call was cancelled before any change was proposed.')
+    const parsed = adaptForLearnersInputSchema.safeParse(input)
+    if (!parsed.success) return failure('invalid-input', 'Learner adaptations are invalid. Check the named sections, matching cycle payloads and instruction limits.')
+    const { teacherContext, ...adaptation } = parsed.data
+    if (!teacherContext) return execute(adaptation as AdaptationInput, dependencies.getDraft(), context)
+    return parseTeacherContextPackage(teacherContext).then((result) => result.ok
+      ? execute(adaptation as AdaptationInput, result.draft, context, result.package.contextFingerprint)
+      : failure('invalid-input', result.message)) as unknown as AdaptForLearnersSuccess | ToolFailure
   }
 }

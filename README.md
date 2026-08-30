@@ -85,7 +85,9 @@ The fictional lesson draft is stored in browser `localStorage`, which is scoped 
 - changing the hostname, scheme or port starts separate origin-local state;
 - there is no server synchronization or account-based recovery.
 
-Different browser applications and profiles have separate storage even on the same URL. Portable proposal packages provide an explicit teacher-controlled copy/paste bridge for pending proposals only. They do not synchronize drafts or move accepted lesson content.
+Different browser applications and profiles have separate storage even on the same URL. Portable proposal packages provide a teacher-controlled ChatGPT-to-Chrome bridge for pending proposals. A complementary `Copy accepted context for ChatGPT` action copies only accepted fictional class, resource, mission and adaptation content for verified transient use by the four downstream tools. It never imports accepted state into ChatGPT, synchronizes drafts, transfers history/validation/approval, or bypasses teacher review.
+
+Transient-context proposals use proposal package version 2 and bind the package to the copied accepted-context SHA-256 fingerprint. Existing version-1 proposal packages remain compatible. The fingerprint detects content changes but is not authentication or signing.
 
 ## Privacy and security boundaries
 

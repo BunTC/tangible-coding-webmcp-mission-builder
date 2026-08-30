@@ -42,7 +42,7 @@ describe('build_tangible_mission WebMCP handler', () => {
   it('shares the exact descriptor schema and accepts the complete canonical boundary', () => {
     const descriptor = WEBMCP_TOOL_CATALOGUE.find(({ name }) => name === 'build_tangible_mission')
     expect(descriptor?.inputSchema).toBe(buildTangibleMissionJsonSchema)
-    expect(Object.keys(buildTangibleMissionJsonSchema.properties)).toEqual(buildTangibleMissionJsonSchema.required)
+    expect(Object.keys(buildTangibleMissionJsonSchema.properties)).toEqual([...buildTangibleMissionJsonSchema.required, 'teacherContext'])
     expect(buildTangibleMissionInputSchema.safeParse(input).success).toBe(true)
     expect(BUILD_MISSION_SECTION_ORDER).toEqual([
       'lesson-identity', 'learning-intention', 'success-criteria', 'mission-story', 'plan',

@@ -1055,6 +1055,33 @@ The package is untrusted pending-proposal transport, not synchronization and not
 
 The teacher pastes the JSON into the visible Step 7 import control. Parsing uses `JSON.parse` only and never evaluates content. A valid package is routed through the existing synchronous `receiveChangeSet` boundary, creates exactly one pending proposal and leaves accepted content unchanged. Stale packages, ID collisions and re-imports fail safely. Import cannot accept, approve, validate or prepare a lesson. The existing teacher controls remain the only way to accept, edit-and-accept or reject an imported operation. Browser `localStorage` remains authoritative within each context outside this explicit copy/paste transfer; there is no backend, account, encoded URL or automatic synchronization.
 
+### 13.1 Teacher accepted-context package
+
+The teacher browser exposes an explicit `Copy accepted context for ChatGPT` action near Step 7. It exports exactly one JSON package:
+
+```ts
+interface TeacherContextPackage {
+  format: "tangible-coding-teacher-context";
+  schemaVersion: 1;
+  contextFingerprint: string;
+  exportedAt: string;
+  classContext: ClassContext;
+  tangibleResources: ResourceInventory;
+  mission: MissionContent;
+  learnerAdaptations: Omit<AdaptationPlan, "sectionsToUpdate">;
+}
+```
+
+All objects are strict and unknown fields are rejected recursively. Duplicate enum selections, non-JSON values, non-plain structures, more than six levels of nesting, obvious personal-data patterns and serialized input over 20,000 UTF-16 characters are rejected. Existing domain limits remain authoritative. Fixed-key-order canonical JSON preserves array order and is hashed with browser Web Crypto SHA-256. The fingerprint detects accidental or manual content changes; it is not authentication or signing. `exportedAt` is informational only and is not freshness evidence.
+
+The package contains accepted fictional lesson content only. It excludes draft identity and timestamps, grouping, pending changes, resolved history, activity, proposal identities, accepted-value receipts, validation and acknowledgements, prepared outputs, status and approval. Copying never changes lesson state and does not synchronize browser storage.
+
+`select_tangible_resources`, `build_tangible_mission`, `adapt_for_learners` and `validate_and_prepare_lesson` each add one optional string property, `teacherContext`, containing the complete serialized package. `set_class_context` remains unchanged and rejects that property. When omitted, existing browser-local behaviour is unchanged. When supplied, the verified package is the complete authoritative invocation snapshot; grouping is derived locally and agent-browser accepted content, proposals, history, validation and approval are ignored.
+
+For the three downstream proposal tools, supplied-context mode constructs normal pending operations against the transient snapshot but does not call the agent-browser receipt boundary. It returns a portable proposal with `schemaVersion: 2`, the context fingerprint, `stateChanged: false`, `delivery: "portable-package-only"` and `usedContextFingerprint`. Version-1 packages remain valid. Before importing version 2, Chrome recomputes the fingerprint of its current accepted context and rejects a mismatch atomically; a matching import still creates pending proposals only.
+
+For `validate_and_prepare_lesson`, supplied-context mode constructs a transient synthetic draft with empty pending/history/validation/approval state, derives grouping, calls the pure deterministic validator and returns `stateChanged: false`, `delivery: "transient-result-only"` and `usedContextFingerprint`. It persists nothing, prepares no outputs and cannot approve.
+
 ## 14. Validation rules for the competition build
 
 | ID | Rule | Severity |
