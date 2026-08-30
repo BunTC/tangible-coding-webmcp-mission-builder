@@ -178,6 +178,12 @@ flowchart TD
 
 ## 8. Global interface design
 
+### 8.0 Current compact shell
+
+D-021 supersedes the earlier permanent three-column and vertical-navigation presentation below without changing the underlying nine-step teacher journey. The current shell uses six website-style workspace destinations in this order: Setup, Mission, Adapt, Review, Validate and Preview. Only the active workspace is visible, with Back, Next and responsive More controls plus a compact accepted-lesson summary. Navigation state is transient and does not enter lesson persistence or URLs.
+
+For this shell slice, Review contains the complete existing inline Section 7 review implementation. Preview is an explicit placeholder for the next approved phase. Review dialogues, acceptance confirmation, accepted-only Working Lesson Preview, exports and teaching-material generation are not implemented in this slice. All WebMCP, pending-proposal, fingerprint, validation, persistence and human-approval contracts remain authoritative.
+
 ### 8.1 Desktop layout
 
 The primary layout uses three columns beneath a fixed header:

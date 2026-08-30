@@ -2,6 +2,8 @@
 
 Mission Builder is a teacher-facing WebMCP Challenge prototype for jointly designing one fictional P4 tangible coding lesson on a shared visual canvas. A compatible browser agent can propose structured changes and run deterministic validation, while the teacher reviews every content proposal. Final acceptance and lesson approval remain human-only.
 
+The current interface groups the unchanged teacher journey into six compact website-style workspaces: **Setup**, **Mission**, **Adapt**, **Review**, **Validate** and **Preview**. Review still uses the existing inline proposal controls. Preview is currently a clearly labelled placeholder; Working Lesson Preview, exports and teaching-material generation are not implemented in this shell change. Navigation state is browser-session UI state only and does not alter lesson persistence or any WebMCP contract.
+
 ## Current implementation
 
 The application provides Manual Steps 1–7 for class context, tangible resources and grouping, mission building, learner adaptation, deterministic validation and section-level change review. The manual workflow remains available when WebMCP is unsupported, inaccessible or unable to register.

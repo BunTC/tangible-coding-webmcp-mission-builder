@@ -201,6 +201,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
   6. Transient validation uses the pure deterministic validator, returns `delivery: "transient-result-only"`, changes no browser state, prepares no outputs and has no approval authority.
   7. Chrome exposes an explicit `Copy accepted context for ChatGPT` action. There is no backend, synchronization, decision receipt or accepted-state import.
 
+## D-021 — Compact workspace shell
+
+- Date: 2026-08-30
+- Decision: Present the unchanged teacher journey through six website-style workspaces—Setup, Mission, Adapt, Review, Validate and Preview—with a compact accepted-lesson summary and reusable provenance markers.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: This changes presentation and navigation only. Active workspace state is transient React UI state and is not persisted, synchronized or placed in `LessonDraft`. Existing handlers, browser-local storage, proposal review, validation, tool contracts and human-only decision boundaries remain unchanged. Review continues to use the existing inline Section 7 implementation. Preview remains a placeholder; no working preview, export, prepared output or teaching-material generation is implemented by this decision.
+
 ## New decision template
 
 ```markdown

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { LessonStoreProvider } from './state/lesson-store'
@@ -6,8 +6,13 @@ import { createGoldenPathDraft, lostStoryPathMission } from './domain/lesson-fac
 import { createPendingChangeSet, getSectionValue } from './domain/lesson-change-control'
 import { LESSON_STORAGE_KEY, lessonReducer } from './state/lesson-state'
 import { createProposalPackage } from './domain/lesson-proposal-package'
+import { ProvenanceMarker, type ProvenanceType } from './components/ProvenanceMarker'
 
 const renderApp = () => render(<LessonStoreProvider><App /></LessonStoreProvider>)
+
+// Legacy behaviour tests intentionally exercise mounted workspace state while the
+// shell-specific tests below verify that inactive workspaces are hidden from users.
+configure({ defaultHidden: true })
 
 function seedStep7Proposal() {
   const draft = { ...createGoldenPathDraft('2026-08-28T10:00:00.000Z'), title: lostStoryPathMission.title, mission: { ...lostStoryPathMission } }
@@ -46,7 +51,7 @@ describe('Mission Builder foundation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
     expect(screen.getByRole('heading', { level: 2, name: 'Untitled mission' })).toBeInTheDocument()
     expect(screen.queryByText('The Lost Story Path')).not.toBeInTheDocument()
-    expect(screen.getByText('24 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getAllByText('24 fictional P4 pupils')).not.toHaveLength(0)
     expect(screen.getByText('3 groups of up to 8 pupils.')).toBeInTheDocument()
     expect(screen.getByLabelText('Robots')).toHaveValue('3')
     expect(screen.getByLabelText('Tile sets')).toHaveValue('9')
@@ -102,7 +107,7 @@ describe('Mission Builder foundation', () => {
     expect(screen.queryByText('The Lost Story Path')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
 
-    expect(screen.getByText('16 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getAllByText('16 fictional P4 pupils')).not.toHaveLength(0)
     expect(screen.getByLabelText('Robots')).toHaveValue('1')
     expect(screen.getByLabelText('Tile sets')).toHaveValue('3')
     expect(screen.getByLabelText('Activity mats')).toHaveValue('1')
@@ -160,7 +165,7 @@ describe('Mission Builder foundation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
 
     expect(screen.getByRole('heading', { level: 2, name: 'Untitled mission' })).toBeInTheDocument()
-    expect(screen.getByText('24 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getAllByText('24 fictional P4 pupils')).not.toHaveLength(0)
     expect(screen.getByLabelText('Robots')).toHaveValue('0')
     expect(screen.getByLabelText('Mission theme')).toHaveValue('')
     expect(screen.getByLabelText('Challenge level')).toHaveValue('')
@@ -363,7 +368,7 @@ describe('Mission Builder foundation', () => {
 
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('Enter a whole number from 1 to 40.')).toHaveAttribute('role', 'alert')
-    expect(screen.getByText('24 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getAllByText('24 fictional P4 pupils')).not.toHaveLength(0)
   })
 
   it('recovers from invalid text and recalculates grouping for a valid class size', () => {
@@ -378,7 +383,7 @@ describe('Mission Builder foundation', () => {
     fireEvent.change(input, { target: { value: '16' } })
     expect(input).toHaveAttribute('aria-invalid', 'false')
     expect(screen.queryByText('Enter a whole number from 1 to 40.')).not.toBeInTheDocument()
-    expect(screen.getByText('16 fictional P4 pupils')).toBeInTheDocument()
+    expect(screen.getAllByText('16 fictional P4 pupils')).not.toHaveLength(0)
     expect(screen.getByText('2 groups of up to 8 pupils.')).toBeInTheDocument()
   })
 
@@ -458,7 +463,7 @@ describe('Mission Builder foundation', () => {
   it('gates Step 6 until mission and adaptation decisions exist', () => {
     renderApp()
     expect(screen.getByRole('button', { name: 'Run validation' })).toBeDisabled()
-    expect(screen.getByText('Complete Steps 4 and 5 before validation.')).toBeInTheDocument()
+    expect(screen.getByText('Complete Mission and Adapt before validation.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
@@ -476,10 +481,10 @@ describe('Mission Builder foundation', () => {
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
     fireEvent.click(screen.getByRole('button', { name: 'Run validation' }))
 
-    expect(screen.getByText('Warnings need acknowledgement')).toBeInTheDocument()
+    expect(screen.getAllByText('Warnings need acknowledgement')).not.toHaveLength(0)
     expect(screen.getByText('VAL-11')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Acknowledge VAL-11'))
-    expect(screen.getAllByText('Ready for teacher review')).toHaveLength(2)
+    expect(screen.getAllByText('Ready for teacher review')).toHaveLength(3)
     expect(screen.getByText('Ready means ready for teacher review; validation never approves a lesson.')).toBeInTheDocument()
     await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('"acknowledgedWarningIds":["VAL-11"]'))
   })
@@ -497,7 +502,7 @@ describe('Mission Builder foundation', () => {
     renderApp()
     expect(screen.getByLabelText('Acknowledge VAL-11')).toBeChecked()
     fireEvent.change(screen.getByLabelText('Plan'), { target: { value: 'Teacher changed the plan.' } })
-    expect(screen.getByText('Not checked')).toBeInTheDocument()
+    expect(screen.getAllByText('Not checked')).not.toHaveLength(0)
     expect(screen.getByText('draft')).toBeInTheDocument()
     await waitFor(() => {
       const persisted = JSON.parse(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1') ?? '{}')
@@ -552,6 +557,169 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByText('WebMCP was detected, but its registration surface is inaccessible or malformed. Manual Steps 1–7 remain available.')).toBeInTheDocument()
     expect(screen.getAllByText('The browser WebMCP registration surface is inaccessible or malformed; Manual Steps 1–7 remain available.')).toHaveLength(4)
     expect(screen.queryByText('WebMCP registration failed; Manual Steps 1–7 remain available.')).not.toBeInTheDocument()
+  })
+})
+
+describe('compact workspace shell', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    Reflect.deleteProperty(document, 'modelContext')
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined })
+  })
+
+  it('provides exactly six ordered website destinations and shows only the selected workspace', () => {
+    renderApp()
+    const navigation = screen.getByRole('navigation', { name: 'Mission Builder workspaces' })
+    expect(within(navigation).getAllByRole('button', { hidden: false }).map((button) => button.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Setup', 'Mission', 'Adapt', 'Review 0', 'Validate Not checked', 'Preview',
+    ])
+    expect(screen.getByRole('region', { name: 'Setup', hidden: false })).toBeVisible()
+    expect(document.getElementById('mission-workspace-title')?.closest('.workspace-panel')).toHaveAttribute('hidden')
+    fireEvent.click(within(navigation).getByRole('button', { name: 'Mission' }))
+    expect(screen.getByRole('region', { name: 'Mission', hidden: false })).toBeVisible()
+    expect(document.getElementById('setup-workspace-title')?.closest('.workspace-panel')).toHaveAttribute('hidden')
+  })
+
+  it('navigates with destination-specific Next and Back controls', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Next to Mission' }))
+    expect(screen.getByRole('button', { name: 'Mission' })).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Setup' }))
+    expect(screen.getByRole('button', { name: 'Setup' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps responsive More destinations keyboard accessible and dismisses after every navigation path', () => {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })) })
+    renderApp()
+    const more = screen.getByRole('button', { name: 'More' })
+    fireEvent.click(more)
+    expect(screen.getByRole('menuitem', { name: /Validate Not checked/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    fireEvent.click(more)
+    fireEvent.click(screen.getByRole('menuitem', { name: /Validate Not checked/ }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Validate', hidden: false })).toBeVisible()
+
+    fireEvent.click(more)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Review' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    fireEvent.click(more)
+    fireEvent.click(screen.getByRole('button', { name: 'Next to Validate' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    fireEvent.click(more)
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    fireEvent.click(more)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(more).toHaveFocus()
+  })
+
+  it('collapses the accepted lesson summary by default on narrow screens and expands through its native keyboard control', () => {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })) })
+    const draft = { ...createGoldenPathDraft('2026-08-30T12:00:00.000Z'), title: lostStoryPathMission.title, mission: { ...lostStoryPathMission } }
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    renderApp()
+    const summary = screen.getByRole('complementary', { name: 'Lesson summary' })
+    const disclosure = within(summary).getByText('Summary details').closest('summary') as HTMLElement
+    const details = disclosure.closest('details') as HTMLDetailsElement
+    expect(details).not.toHaveAttribute('open')
+    expect(disclosure).toHaveTextContent('The Lost Story Path')
+    expect(disclosure).toHaveTextContent('Not checked')
+    expect(within(summary).getByText('Teacher approval required')).toBeVisible()
+    disclosure.focus()
+    expect(disclosure).toHaveFocus()
+    fireEvent.keyDown(disclosure, { key: 'Enter' })
+    disclosure.click()
+    expect(details).toHaveAttribute('open')
+    expect(within(summary).getByText('24 fictional P4 pupils')).toBeInTheDocument()
+    expect(within(summary).getByText('45 minutes')).toBeInTheDocument()
+  })
+
+  it('keeps the complete accepted lesson summary visible on desktop', () => {
+    renderApp()
+    const summary = screen.getByRole('complementary', { name: 'Lesson summary' })
+    expect(summary.querySelector('details')).toBeNull()
+    expect(within(summary).getByText('24 fictional P4 pupils')).toBeVisible()
+    expect(within(summary).getByText('Validation and accepting proposals never approve a lesson.')).toBeVisible()
+  })
+
+  it('preserves temporary fields, accepted values and unfinished review input across navigation', () => {
+    renderApp()
+    fireEvent.change(screen.getByLabelText('Class size'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
+    fireEvent.change(screen.getByLabelText('Plan duration (minutes)'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adapt' }))
+    fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'x'.repeat(501) } })
+    expect(screen.getByText('Enter no more than 500 characters.')).toHaveAttribute('role', 'alert')
+    fireEvent.click(screen.getByRole('button', { name: /^Review/ }))
+    fireEvent.change(screen.getByLabelText('Proposal package JSON'), { target: { value: 'unfinished package' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
+    expect(screen.getByLabelText('Mission title')).toHaveValue(lostStoryPathMission.title)
+    expect(screen.getByLabelText('Plan duration (minutes)')).toHaveValue(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Adapt' }))
+    expect(screen.getByText('Enter no more than 500 characters.')).toHaveAttribute('role', 'alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Setup' }))
+    expect(screen.getByLabelText('Class size')).toHaveValue(null)
+    fireEvent.click(screen.getByRole('button', { name: /^Review/ }))
+    expect(screen.getByLabelText('Proposal package JSON')).toHaveValue('unfinished package')
+  })
+
+  it.each([
+    ['blocked', 'blocked'],
+    ['warning', 'warning'],
+    ['ready', 'ready'],
+  ] as const)('shows the %s validation state in workspace navigation', (_label, readiness) => {
+    const draft = createGoldenPathDraft('2026-08-30T12:00:00.000Z')
+    draft.validation = {
+      readiness,
+      score: readiness === 'ready' ? 1 : 0,
+      checks: [{ id: 'VAL-SHELL', severity: readiness === 'ready' ? 'pass' : readiness === 'blocked' ? 'error' : 'warning', message: 'Shell readiness fixture.', section: 'class-context', suggestedFix: '' }],
+      preparedOutputs: [],
+      acknowledgedWarningIds: readiness === 'warning' ? [] : [],
+    }
+    draft.status = readiness === 'ready' ? 'ready' : 'draft'
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    renderApp()
+    expect(screen.getByRole('button', { name: new RegExp(`Validate ${readiness}`, 'i') })).toBeInTheDocument()
+  })
+
+  it('shows pending count while keeping proposed values out of the accepted summary', () => {
+    seedStep7Proposal()
+    renderApp()
+    expect(screen.getByRole('button', { name: /Review 1 pending proposal operation/ })).toBeInTheDocument()
+    const summary = screen.getByRole('complementary', { name: 'Lesson summary' })
+    expect(summary).toHaveTextContent(lostStoryPathMission.title)
+    expect(summary).not.toHaveTextContent('Proposed visible intention.')
+  })
+
+  it('exposes all provenance meanings and associates keyboard tooltips', () => {
+    const types: ProvenanceType[] = ['ai-suggestion', 'teacher-authored', 'teacher-accepted', 'awaiting-teacher', 'teacher-approval-required']
+    const labels = ['AI suggestion', 'Teacher authored', 'Teacher accepted', 'Awaiting teacher', 'Teacher approval required']
+    render(<>{types.map((type) => <ProvenanceMarker key={type} type={type} />)}</>)
+    labels.forEach((label) => expect(screen.getByText(label)).toBeInTheDocument())
+    const aiMarker = screen.getByText('AI suggestion').parentElement as HTMLElement
+    aiMarker.focus()
+    const tooltipId = aiMarker.getAttribute('aria-describedby')
+    expect(tooltipId).toBeTruthy()
+    expect(document.getElementById(tooltipId ?? '')).toHaveAttribute('role', 'tooltip')
+    expect(aiMarker.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('retains the storage key, restored accepted lesson and visible approval boundary', () => {
+    const draft = { ...createGoldenPathDraft('2026-08-30T12:00:00.000Z'), title: lostStoryPathMission.title, mission: { ...lostStoryPathMission } }
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    renderApp()
+    expect(LESSON_STORAGE_KEY).toBe('tangible-coding-studio:mission-builder:draft:v1')
+    expect(screen.getByRole('complementary', { name: 'Lesson summary' })).toHaveTextContent('The Lost Story Path')
+    expect(screen.getAllByText('Teacher approval required')).not.toHaveLength(0)
+    expect(screen.getByText('Validation and accepting proposals never approve a lesson.')).toBeVisible()
   })
 })
 

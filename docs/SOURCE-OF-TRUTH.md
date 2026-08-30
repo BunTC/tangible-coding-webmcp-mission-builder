@@ -94,6 +94,8 @@ This rule supersedes the earlier ambiguous `max(robotCount, activityMatCount)` g
 8. Teacher approval
 9. Preview and print
 
+The compact application shell presents this unchanged teacher journey through six website-style workspaces in order: Setup, Mission, Adapt, Review, Validate and Preview. This is a presentation and navigation grouping only. Review retains the existing inline Section 7 controls, and Preview is currently an honest placeholder for a later approved implementation phase.
+
 ## Tangible Learning Cycle
 
 Every mission must include:
