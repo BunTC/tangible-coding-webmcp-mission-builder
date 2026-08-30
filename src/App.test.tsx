@@ -854,6 +854,13 @@ describe('compact workspace shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next to Validate' }))
     fireEvent.click(screen.getByRole('button', { name: 'More' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }))
+    expect(screen.getByRole('article', { name: 'Teacher Guide' })).toHaveTextContent('Debug the Kelpie’s Story Route')
+    fireEvent.click(screen.getByRole('button', { name: 'Pupil Mission Card' }))
+    expect(screen.getByRole('article', { name: 'Pupil Mission Card' })).toHaveTextContent(complete.mission.missionStory)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Validate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }))
+    expect(screen.getByRole('article', { name: 'Teacher Guide' })).toBeInTheDocument()
     expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(complete)
 
     first.unmount()
@@ -884,6 +891,36 @@ describe('compact workspace shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
     expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(withPending)
     expect(screen.getByLabelText('The challenge')).toHaveValue(complete.mission.missionStory)
+  })
+
+  it('renders accepted Preview content without leaking conspicuous pending or rejected values', async () => {
+    const complete = completeAcceptedDraft()
+    const rejectedProposal = createPendingChangeSet(complete, 'build_tangible_mission', [{
+      section: 'mission-story',
+      before: complete.mission.missionStory,
+      proposed: 'CONSPICUOUS REJECTED VALUE',
+    }], { changeSetId: 'preview-rejected-set', operationIds: ['preview-rejected-operation'], createdAt: '2026-08-30T13:00:00.000Z' })
+    const receivedRejected = lessonReducer(complete, { type: 'receive-change-set', payload: rejectedProposal })
+    const rejected = lessonReducer(receivedRejected, { type: 'resolve-change-operation', payload: { changeSetId: rejectedProposal.changeSetId, operationId: rejectedProposal.operations[0].operationId, decision: 'reject' } })
+    const pendingProposal = createPendingChangeSet(rejected, 'build_tangible_mission', [{
+      section: 'assessment-evidence',
+      before: rejected.mission.assessmentEvidence,
+      proposed: ['CONSPICUOUS PENDING VALUE'],
+    }], { changeSetId: 'preview-pending-set', operationIds: ['preview-pending-operation'], createdAt: '2026-08-30T13:05:00.000Z' })
+    const withPending = lessonReducer(rejected, { type: 'receive-change-set', payload: pendingProposal })
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(withPending))
+    renderApp()
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(withPending))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    const preview = screen.getByRole('region', { name: 'Preview' })
+    expect(within(preview).getByRole('article', { name: 'Teacher Guide' })).toHaveTextContent(complete.mission.missionStory)
+    expect(within(preview).getByText('1 pending suggestion is excluded from this accepted-content preview.')).toBeVisible()
+    expect(within(preview).queryByText('CONSPICUOUS PENDING VALUE')).not.toBeInTheDocument()
+    expect(within(preview).queryByText('CONSPICUOUS REJECTED VALUE')).not.toBeInTheDocument()
+    expect(within(preview).queryByText('preview-pending-set')).not.toBeInTheDocument()
+    expect(within(preview).queryByText('preview-rejected-set')).not.toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(withPending)
   })
 })
 

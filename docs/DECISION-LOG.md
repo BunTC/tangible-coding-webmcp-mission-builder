@@ -209,6 +209,14 @@ Each entry must include date, decision, owner, status and effect. A confirmed en
 - Status: Confirmed
 - Effect: This changes presentation and navigation only. Active workspace state is transient React UI state and is not persisted, synchronized or placed in `LessonDraft`. Existing handlers, browser-local storage, proposal review, validation, tool contracts and human-only decision boundaries remain unchanged. Review continues to use the existing inline Section 7 implementation. Preview remains a placeholder; no working preview, export, prepared output or teaching-material generation is implemented by this decision.
 
+## D-022 — Accepted-content-only browser Preview
+
+- Date: 2026-08-30
+- Decision: Replace D-021's Preview placeholder with component-local Teacher Guide, Pupil Mission Card and Observation Checklist browser views built only from the currently accepted lesson snapshot and accepted-section attribution.
+- Owner: Bun Tang
+- Status: Confirmed
+- Effect: Preview receives no proposal collections or proposal values, renders exactly one semantic article at a time and may show only a pending-operation count to explain that suggestions are excluded. Output selection is transient and is not persisted or placed in URLs. `Ready` means ready for teacher review, teacher approval remains required and no approval control is added. Deliberate native printing prints the selected browser view only. This does not generate, download, export or persist teaching materials; `preparationImplemented` remains `false` and `preparedOutputs` remains `[]`. All WebMCP, proposal, fingerprint, state, persistence and browser-local authority contracts remain unchanged.
+
 ## New decision template
 
 ```markdown

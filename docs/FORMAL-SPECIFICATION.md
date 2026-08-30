@@ -182,7 +182,7 @@ flowchart TD
 
 D-021 supersedes the earlier permanent three-column and vertical-navigation presentation below without changing the underlying nine-step teacher journey. The current shell uses six website-style workspace destinations in this order: Setup, Mission, Adapt, Review, Validate and Preview. Only the active workspace is visible, with Back, Next and responsive More controls plus a compact accepted-lesson summary. Navigation state is transient and does not enter lesson persistence or URLs.
 
-For this shell slice, Review contains the complete existing inline Section 7 review implementation. Preview is an explicit placeholder for the next approved phase. Review dialogues, acceptance confirmation, accepted-only Working Lesson Preview, exports and teaching-material generation are not implemented in this slice. All WebMCP, pending-proposal, fingerprint, validation, persistence and human-approval contracts remain authoritative.
+Review contains the complete existing inline Section 7 review implementation. Preview provides three browser-derived accepted-content views—Teacher Guide, Pupil Mission Card and Observation Checklist—with component-local output selection and native printing of the selected view. It receives accepted lesson fields and accepted-section attribution only; proposal collections, proposal values and proposal identifiers are outside its input boundary. Review dialogues, acceptance confirmation, exports and teaching-material generation are not implemented. All WebMCP, pending-proposal, fingerprint, validation, persistence and human-approval contracts remain authoritative.
 
 ### 8.1 Desktop layout
 
@@ -665,32 +665,39 @@ Demonstrate useful outputs without building a production document service.
 ### Output tabs
 
 1. **Teacher Guide**
-   - overview;
-   - preparation;
-   - timing;
-   - facilitation notes;
-   - differentiation;
-   - assessment evidence.
+   - lesson and class overview;
+   - accepted tangible resources and grouping calculation;
+   - learning intention, success criteria and story;
+   - accepted timing and content for all four learning-cycle stages;
+   - accepted learner supports and extensions;
+   - accepted assessment evidence.
 2. **Pupil Mission Card**
-   - mission story;
-   - visual step sequence placeholders;
-   - group roles;
-   - success reminders.
+   - accepted mission story and learning intention;
+   - accepted four-stage sequence and timings;
+   - accepted success reminders;
+   - accepted grouping route and tangible-resource counts;
+   - an honest notice when group roles are not specified.
 3. **Observation Checklist**
-   - observable success criteria;
-   - evidence notes columns;
-   - reflection prompts.
+   - accepted observable success criteria;
+   - blank evidence-notes columns for teacher use;
+   - accepted assessment evidence;
+   - accepted debugging and reflection prompts.
 
 ### Controls
 
-- `Print current output` uses the browser print dialog.
-- `Print all outputs` renders a combined print stylesheet.
-- `Reopen lesson` returns the status to `Needs review`.
-- `Start another demo` creates a new local draft after confirmation.
+- Output-selection buttons change only component-local transient presentation state.
+- `Print current preview` uses the browser print dialog for the selected output only.
+- There is no print-all, download, export, approval or prepared-output control.
 
 ### Competition limitation
 
 Do not claim that the browser print view is a finished commercial curriculum pack or production PDF export.
+
+### Current implementation boundary
+
+The implemented Preview renders exactly one semantic accepted-content browser view at a time. Empty accepted fields use honest missing-state wording. It does not invent group roles, preparation guidance, pupil content, evidence or images. Pending suggestions may be counted only to explain that they are excluded; pending and rejected values, proposal metadata, JSON and fingerprints are never preview content.
+
+`Ready` is displayed as `Ready for teacher review`. Preview provides no approval control and never changes approval state. `Print current preview` deliberately invokes the native browser print dialog for only the selected view. Combined printing, PDF generation, downloads, exports and prepared files are not implemented; `preparationImplemented` remains `false` and `preparedOutputs` remains `[]`.
 
 ## 10. WebMCP tool specification
 

@@ -11,6 +11,7 @@ import { createTeacherContextPackage } from './domain/lesson-context-package'
 import { WorkspaceTabs, type WorkspaceId } from './components/WorkspaceTabs'
 import { LessonSummary } from './components/LessonSummary'
 import { ProvenanceMarker, type ProvenanceType } from './components/ProvenanceMarker'
+import { LessonPreview } from './components/LessonPreview'
 
 const durations = [30, 45, 60, 90] as const
 const focuses: ClassContext['learningFocus'][number][] = ['sequencing', 'algorithms', 'loops', 'debugging', 'conditionals', 'collaboration']
@@ -221,6 +222,9 @@ function App() {
   const validationStatus = draft.validation.checks.length === 0 ? 'not-checked' as const : draft.validation.readiness
   const completedAreas = [classContextSchema.safeParse(classContext).success, missionExists, adaptationComplete, draft.validation.checks.length > 0].filter(Boolean).length
   const sectionProvenance = (section: Parameters<typeof getSectionAttribution>[1]): Extract<ProvenanceType, 'teacher-authored' | 'teacher-accepted'> => getSectionAttribution(draft, section)?.currentSource === 'accepted-proposal' ? 'teacher-accepted' : 'teacher-authored'
+  const previewProvenance = Object.fromEntries([
+    'class-context', 'tangible-resources', 'lesson-identity', 'learning-intention', 'success-criteria', 'mission-story', 'plan', 'build-and-explain', 'test-and-debug', 'reflect-and-improve', 'assessment-evidence', 'learner-support', 'extension-challenge',
+  ].map((section) => [section, sectionProvenance(section as Parameters<typeof getSectionAttribution>[1])]))
   const focusValidationSection = (section?: string) => {
     const targets: Record<string, { workspace: WorkspaceId; selector: string }> = {
       'class-context': { workspace: 'setup', selector: 'input[type="number"][max="40"]' },
@@ -316,7 +320,7 @@ function App() {
       </section>
       <section className="workspace-panel" hidden={activeWorkspace !== 'review'} aria-labelledby="review-workspace-title"><div className="workspace-heading"><div><p className="eyebrow">Human change control</p><h2 id="review-workspace-title">Review</h2></div><ProvenanceMarker type={pendingCount > 0 ? 'awaiting-teacher' : 'ai-suggestion'} /></div><ChangeReview draft={draft} webMcpStatus={webMcpStatus} onImport={(serialized) => importProposalPackage(serialized, getDraft(), receiveChangeSet)} onResolve={(changeSetId, operationId, decision, acceptedValue) => dispatch({ type: 'resolve-change-operation', payload: { changeSetId, operationId, decision, acceptedValue } })} /></section>
       <section className="workspace-panel" hidden={activeWorkspace !== 'validate'} aria-labelledby="validate-workspace-title"><div className="workspace-heading"><div><p className="eyebrow">Deterministic checks</p><h2 id="validate-workspace-title">Validate</h2></div><span className={`readiness-label readiness-${validationStatus}`}>{validationStatus === 'not-checked' ? 'Not checked' : validationStatus}</span></div><section className="setup-controls validation-controls" aria-labelledby="validation-controls-title"><h3 id="validation-controls-title">Validate lesson</h3><p>Run deterministic checks against the current teacher-edited draft.</p><button type="button" className="primary-button" disabled={!missionExists || !adaptationComplete} onClick={() => dispatch({ type: 'run-validation' })}>Run validation</button>{(!missionExists || !adaptationComplete) && <p className="blocking-note">Complete Mission and Adapt before validation.</p>}<p>{webMcpWorkflowGuidance(webMcpStatus, 'validation-control')}</p></section><ValidationPanel draft={draft} webMcpStatus={webMcpStatus} onAcknowledge={(id) => dispatch({ type: 'acknowledge-warning', payload: id })} onEditSection={focusValidationSection} /></section>
-      <section className="workspace-panel preview-placeholder" hidden={activeWorkspace !== 'preview'} aria-labelledby="preview-workspace-title"><div className="workspace-heading"><div><p className="eyebrow">Next approved phase</p><h2 id="preview-workspace-title">Preview</h2></div><ProvenanceMarker type="teacher-approval-required" /></div><div className="canvas-card"><h3>Working Lesson Preview is coming next</h3><p>This workspace is a placeholder for the next approved implementation phase. Teaching materials have not been generated, and no prepared outputs or export controls are available.</p></div></section>
+      <section className="workspace-panel preview-workspace" hidden={activeWorkspace !== 'preview'} aria-labelledby="preview-workspace-title"><div className="workspace-heading"><div><p className="eyebrow">Accepted lesson outputs</p><h2 id="preview-workspace-title">Preview</h2></div><ProvenanceMarker type="teacher-approval-required" /></div>{activeWorkspace === 'preview' && <LessonPreview accepted={{ classContext, resources, groupingPlan, mission, adaptations, validation: { readiness: validationStatus, preparedOutputs: [] as const } }} provenance={previewProvenance} pendingCount={pendingCount} />}</section>
       </div>
       <LessonSummary title={draft.title} stage={classContext.stage} classSize={classContext.classSize} durationMinutes={classContext.durationMinutes} readiness={validationStatus} completedAreas={completedAreas} totalAreas={4} titleProvenance={sectionProvenance('lesson-identity')} />
     </main>

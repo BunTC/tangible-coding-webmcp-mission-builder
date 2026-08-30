@@ -94,7 +94,7 @@ This rule supersedes the earlier ambiguous `max(robotCount, activityMatCount)` g
 8. Teacher approval
 9. Preview and print
 
-The compact application shell presents this unchanged teacher journey through six website-style workspaces in order: Setup, Mission, Adapt, Review, Validate and Preview. This is a presentation and navigation grouping only. Review retains the existing inline Section 7 controls, and Preview is currently an honest placeholder for a later approved implementation phase.
+The compact application shell presents this unchanged teacher journey through six website-style workspaces in order: Setup, Mission, Adapt, Review, Validate and Preview. This is a presentation and navigation grouping only. Review retains the existing inline Section 7 controls. Preview renders one browser-derived Teacher Guide, Pupil Mission Card or Observation Checklist at a time from currently accepted content only; pending and rejected proposal values are excluded.
 
 ## Tangible Learning Cycle
 
@@ -145,6 +145,8 @@ The prototype validates:
 - Observation Checklist
 
 Browser print views are sufficient. A production PDF service is not required.
+
+The implemented Preview uses native printing for the selected accepted-content view only. It does not generate or persist teaching materials: `preparationImplemented` remains `false`, `preparedOutputs` remains `[]`, and readiness never implies approval.
 
 ## Technology decisions
 

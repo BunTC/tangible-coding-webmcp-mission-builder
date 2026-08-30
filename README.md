@@ -2,7 +2,7 @@
 
 Mission Builder is a teacher-facing WebMCP Challenge prototype for jointly designing one fictional P4 tangible coding lesson on a shared visual canvas. A compatible browser agent can propose structured changes and run deterministic validation, while the teacher reviews every content proposal. Final acceptance and lesson approval remain human-only.
 
-The current interface groups the unchanged teacher journey into six compact website-style workspaces: **Setup**, **Mission**, **Adapt**, **Review**, **Validate** and **Preview**. Review still uses the existing inline proposal controls. Preview is currently a clearly labelled placeholder; Working Lesson Preview, exports and teaching-material generation are not implemented in this shell change. Navigation state is browser-session UI state only and does not alter lesson persistence or any WebMCP contract.
+The current interface groups the unchanged teacher journey into six compact website-style workspaces: **Setup**, **Mission**, **Adapt**, **Review**, **Validate** and **Preview**. Review still uses the existing inline proposal controls. Preview provides browser-derived Teacher Guide, Pupil Mission Card and Observation Checklist views using currently accepted content only, with native printing for the selected view. Navigation and preview-selection state are transient UI state only and do not alter lesson persistence or any WebMCP contract.
 
 ## Current implementation
 
@@ -22,7 +22,7 @@ Successful calls to those four tools also return a strictly versioned `proposalP
 
 `validate_and_prepare_lesson` calls the same deterministic validator used by Manual Step 6 and creates no proposal. It supports `validate` and `validate-and-prepare` modes. Actual output preparation is intentionally not implemented: `preparationImplemented` is `false` and `preparedOutputs` is always `[]`. Validation can mark a lesson ready for human teacher review, but no WebMCP tool can approve it.
 
-Teacher approval, output generation, printing and deployment are not implemented in the current application. Manual Steps 1–7 remain available without WebMCP.
+Teacher approval and prepared-file generation are not implemented in the current application. Preview is a browser presentation of accepted state, not a generated or approved teaching-material pack: `preparationImplemented` remains `false` and `preparedOutputs` remains `[]`. Manual Steps 1–7 remain available without WebMCP.
 
 ## Browser baseline and WebMCP enablement
 
