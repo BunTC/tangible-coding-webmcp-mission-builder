@@ -764,6 +764,30 @@ textarea {
 .provenance-marker:focus .provenance-tooltip,
 .provenance-marker:focus-within .provenance-tooltip { opacity: 1; transform: translateY(0); }
 .preview-placeholder .canvas-card { min-height: 220px; display: grid; align-content: center; text-align: center; }
+.destructive-warning { padding-left: 0.7rem; border-left: 3px solid #b97900; color: #704900; font-weight: 750; }
+.confirmation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(9, 31, 44, 0.68);
+}
+.confirmation-dialog {
+  width: min(34rem, 100%);
+  padding: 1.4rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  color: var(--blue-950);
+  box-shadow: 0 20px 60px rgba(5, 24, 35, 0.35);
+}
+.confirmation-dialog h2 { margin-top: 0; }
+.confirmation-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+.destructive-button { border-color: #8f2f25; background: #8f2f25; color: white; }
+.destructive-button:hover { background: #6f211a; }
+.confirmation-dialog button:focus-visible { outline: 3px solid #087e8b; outline-offset: 3px; }
 
 .workspace-link:focus-visible,
 .workspace-sequence button:focus-visible,

@@ -7,8 +7,15 @@ import { createPendingChangeSet, getSectionValue } from './domain/lesson-change-
 import { LESSON_STORAGE_KEY, lessonReducer } from './state/lesson-state'
 import { createProposalPackage } from './domain/lesson-proposal-package'
 import { ProvenanceMarker, type ProvenanceType } from './components/ProvenanceMarker'
+import type { AdaptationPlan, LessonDraft } from './domain/lesson-schemas'
 
 const renderApp = () => render(<LessonStoreProvider><App /></LessonStoreProvider>)
+
+function activateDestructiveAction(triggerName: 'Build mission' | 'Start New Mission' | 'Load P4 Demo', confirmationName: 'Replace mission' | 'Start new mission' | 'Load demo') {
+  fireEvent.click(screen.getByRole('button', { name: triggerName }))
+  const dialog = screen.queryByRole('dialog')
+  if (dialog) fireEvent.click(within(dialog).getByRole('button', { name: confirmationName }))
+}
 
 // Legacy behaviour tests intentionally exercise mounted workspace state while the
 // shell-specific tests below verify that inactive workspaces are hidden from users.
@@ -27,6 +34,31 @@ function seedAcceptedThenTeacherEditedProposal() {
   const accepted = lessonReducer(received, { type: 'resolve-change-operation', payload: { changeSetId: 'attribution-set', operationId: 'attribution-operation', decision: 'accept' } })
   const teacherEdited = lessonReducer(accepted, { type: 'update-mission', payload: { ...accepted.mission, learningIntention: 'Current teacher-edited intention.' } })
   window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(teacherEdited))
+}
+
+function completeAcceptedDraft(): LessonDraft {
+  const initial: LessonDraft = {
+    ...createGoldenPathDraft('2026-08-30T12:00:00.000Z'),
+    title: 'Debug the Kelpie’s Story Route',
+    classContext: { ...createGoldenPathDraft().classContext, teacherConfidence: 'confident' as const },
+    mission: { ...lostStoryPathMission, title: 'Debug the Kelpie’s Story Route' },
+    adaptations: {
+      supports: ['reduced-reading', 'visual-instructions'],
+      extensions: ['loop-challenge'],
+      supportInstructions: 'Use concise visual prompts for each route step.',
+      extensionInstructions: 'Invite pupils to replace repeated moves with a loop.',
+      sectionsToUpdate: [],
+      noAdditionalAdaptation: false,
+    } satisfies AdaptationPlan,
+  }
+  const proposal = createPendingChangeSet(initial, 'build_tangible_mission', [{
+    section: 'learning-intention',
+    before: initial.mission.learningIntention,
+    proposed: 'We are learning to test, explain and debug the Kelpie’s story route.',
+  }], { changeSetId: 'complete-history-set', operationIds: ['complete-history-operation'], createdAt: '2026-08-30T12:05:00.000Z' })
+  const received = lessonReducer(initial, { type: 'receive-change-set', payload: proposal })
+  const accepted = lessonReducer(received, { type: 'resolve-change-operation', payload: { changeSetId: proposal.changeSetId, operationId: proposal.operations[0].operationId, decision: 'accept' } })
+  return lessonReducer(accepted, { type: 'run-validation' })
 }
 
 describe('Mission Builder foundation', () => {
@@ -48,7 +80,7 @@ describe('Mission Builder foundation', () => {
 
   it('loads and displays the canonical fictional P4 demo', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
     expect(screen.getByRole('heading', { level: 2, name: 'Untitled mission' })).toBeInTheDocument()
     expect(screen.queryByText('The Lost Story Path')).not.toBeInTheDocument()
     expect(screen.getAllByText('24 fictional P4 pupils')).not.toHaveLength(0)
@@ -64,7 +96,7 @@ describe('Mission Builder foundation', () => {
 
   it('keeps every Step 4 field and array empty when loading only the P4 demo context', async () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
 
     expect(screen.getByLabelText('Mission theme')).toHaveValue('')
     expect(screen.getByLabelText('Challenge level')).toHaveValue('')
@@ -87,8 +119,8 @@ describe('Mission Builder foundation', () => {
 
   it('resets to a clean fictional draft', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
+    activateDestructiveAction('Start New Mission', 'Start new mission')
     expect(screen.getByRole('heading', { level: 2, name: 'Untitled mission' })).toBeInTheDocument()
     expect(screen.getByLabelText('Robots')).toHaveValue('0')
     expect(screen.getByRole('alert')).toHaveTextContent('Blocking: No usable group station is available.')
@@ -105,7 +137,7 @@ describe('Mission Builder foundation', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Allow tile-only groups without a robot' }))
 
     expect(screen.queryByText('The Lost Story Path')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
 
     expect(screen.getAllByText('16 fictional P4 pupils')).not.toHaveLength(0)
     expect(screen.getByLabelText('Robots')).toHaveValue('1')
@@ -133,9 +165,9 @@ describe('Mission Builder foundation', () => {
 
   it('starts directly from a completely blank mission without sample prose', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.change(screen.getByLabelText('Starting method'), { target: { value: 'blank' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
 
     expect(screen.queryByText('The Lost Story Path')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Mission theme')).toHaveValue('')
@@ -150,7 +182,7 @@ describe('Mission Builder foundation', () => {
 
   it('clears every edited Step 4 field and array when starting a new mission', async () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.change(screen.getByLabelText('Mission theme'), { target: { value: 'Edited theme' } })
     fireEvent.change(screen.getByLabelText('Challenge level'), { target: { value: 'stretch' } })
     fireEvent.change(screen.getByLabelText('Mission title'), { target: { value: 'Edited title' } })
@@ -162,7 +194,7 @@ describe('Mission Builder foundation', () => {
     fireEvent.change(screen.getByLabelText('Test & Debug'), { target: { value: 'Edited test stage' } })
     fireEvent.change(screen.getByLabelText('Reflect & Improve'), { target: { value: 'Edited reflect stage' } })
     fireEvent.change(screen.getByLabelText('Assessment evidence 1'), { target: { value: 'Edited evidence' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    activateDestructiveAction('Start New Mission', 'Start new mission')
 
     expect(screen.getByRole('heading', { level: 2, name: 'Untitled mission' })).toBeInTheDocument()
     expect(screen.getAllByText('24 fictional P4 pupils')).not.toHaveLength(0)
@@ -190,7 +222,7 @@ describe('Mission Builder foundation', () => {
 
   it('persists an inline teacher mission edit after reload', async () => {
     const firstRender = renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.change(screen.getByLabelText('What pupils are learning'), { target: { value: 'We are learning to repair a sequence.' } })
     await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('repair a sequence'))
     firstRender.unmount()
@@ -212,7 +244,7 @@ describe('Mission Builder foundation', () => {
 
   it('records support instructions only and keeps incomplete selections visibly incomplete', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('Reduced reading load'))
     expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 incomplete')
     fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Use short phrases and a visual sequence.' } })
@@ -225,7 +257,7 @@ describe('Mission Builder foundation', () => {
 
   it('records extension instructions only', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('Loop challenge'))
     fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Replace repeated steps with a loop.' } })
 
@@ -236,7 +268,7 @@ describe('Mission Builder foundation', () => {
 
   it('records both support and extension instructions', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Show each instruction visually.' } })
     fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Ask pupils to compare two solutions.' } })
 
@@ -247,7 +279,7 @@ describe('Mission Builder foundation', () => {
 
   it('accepts 500 characters and rejects an over-limit instruction without mutating state', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     const instructions = screen.getByLabelText('Support instructions')
     fireEvent.change(instructions, { target: { value: 's'.repeat(500) } })
     expect(instructions).toHaveValue('s'.repeat(500))
@@ -262,7 +294,7 @@ describe('Mission Builder foundation', () => {
 
   it('resolves conflicts between instructions and an explicit no-adaptation decision', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('Visual instructions'))
     fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Use picture prompts.' } })
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
@@ -285,7 +317,7 @@ describe('Mission Builder foundation', () => {
 
   it('persists manual adaptation decisions across reload', async () => {
     const firstRender = renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('Paired explanation'))
     fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Explain the route with a partner.' } })
     await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('Explain the route with a partner.'))
@@ -299,7 +331,7 @@ describe('Mission Builder foundation', () => {
 
   it('persists the explicit no-additional-adaptation decision across reload', async () => {
     const firstRender = renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
     await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('"noAdditionalAdaptation":true'))
     firstRender.unmount()
@@ -311,29 +343,29 @@ describe('Mission Builder foundation', () => {
 
   it('clears adaptations for sample, blank and new mission actions', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'First adaptation.' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     expect(screen.getByLabelText('Support instructions')).toHaveValue('')
     expect(screen.getByRole('status', { name: 'Step 5 completion status' })).toHaveTextContent('Step 5 incomplete')
 
     fireEvent.change(screen.getByLabelText('Support instructions'), { target: { value: 'Second adaptation.' } })
     fireEvent.change(screen.getByLabelText('Starting method'), { target: { value: 'blank' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     expect(screen.getByLabelText('Support instructions')).toHaveValue('')
     expect(screen.getByLabelText('Support instructions')).toBeDisabled()
 
     fireEvent.change(screen.getByLabelText('Mission title'), { target: { value: 'Teacher mission' } })
     fireEvent.change(screen.getByLabelText('Extension instructions'), { target: { value: 'Third adaptation.' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    activateDestructiveAction('Start New Mission', 'Start new mission')
     expect(screen.getByLabelText('Extension instructions')).toHaveValue('')
     expect(screen.getByLabelText('Extension instructions')).toBeDisabled()
   })
 
   it('keeps Step 4 prose, resources and grouping unchanged and sectionsToUpdate empty', async () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
+    activateDestructiveAction('Build mission', 'Replace mission')
     await waitFor(() => expect(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1')).toContain('The Lost Story Path'))
     const before = JSON.parse(window.localStorage.getItem('tangible-coding-studio:mission-builder:draft:v1') ?? '{}')
     fireEvent.click(screen.getByLabelText('Reduced reading load'))
@@ -373,7 +405,7 @@ describe('Mission Builder foundation', () => {
 
   it('recovers from invalid text and recalculates grouping for a valid class size', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
     const input = screen.getByLabelText('Class size')
 
     fireEvent.change(input, { target: { value: '' } })
@@ -389,7 +421,7 @@ describe('Mission Builder foundation', () => {
 
   it('does not persist invalid temporary class-size text', async () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
     fireEvent.change(screen.getByLabelText('Class size'), { target: { value: '41' } })
 
     await waitFor(() => {
@@ -405,13 +437,13 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByLabelText('Pupil role cards')).toHaveValue('40')
     expect(increase).toBeDisabled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    activateDestructiveAction('Start New Mission', 'Start new mission')
     expect(screen.getByRole('button', { name: 'Decrease Pupil role cards' })).toBeDisabled()
   })
 
   it('does not require rotation when tile-only capacity covers groups despite fewer robots', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
     fireEvent.click(screen.getByRole('button', { name: 'Decrease Robots' }))
     expect(screen.getByText('Not required')).toBeInTheDocument()
     expect(screen.queryByText('groups rotate through the available stations.', { exact: false })).not.toBeInTheDocument()
@@ -419,7 +451,7 @@ describe('Mission Builder foundation', () => {
 
   it('requires rotation when robot-active capacity is below required groups', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
     fireEvent.click(screen.getByRole('button', { name: 'Decrease Robots' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Allow tile-only groups without a robot' }))
     expect(screen.getByText('Required')).toBeInTheDocument()
@@ -445,7 +477,7 @@ describe('Mission Builder foundation', () => {
 
   it('exposes ordinary recalculation through a live status without duplicating alerts', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
     const status = screen.getByRole('status', { name: 'Grouping calculation status' })
     expect(status).toHaveAttribute('aria-live', 'polite')
     expect(status).toHaveAttribute('aria-atomic', 'true')
@@ -454,7 +486,7 @@ describe('Mission Builder foundation', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Allow tile-only groups without a robot' }))
     expect(status).toHaveTextContent('RotationNot required')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    activateDestructiveAction('Start New Mission', 'Start new mission')
     expect(screen.getByRole('alert')).toHaveTextContent('Blocking: No usable group station is available.')
     expect(within(status).queryByRole('alert')).not.toBeInTheDocument()
     expect(status).not.toHaveTextContent('Blocking:')
@@ -465,15 +497,15 @@ describe('Mission Builder foundation', () => {
     expect(screen.getByRole('button', { name: 'Run validation' })).toBeDisabled()
     expect(screen.getByText('Complete Mission and Adapt before validation.')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
     expect(screen.getByRole('button', { name: 'Run validation' })).toBeEnabled()
   })
 
   it('loads explicit sample timings, validates, acknowledges a warning and becomes ready for teacher review', async () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
+    activateDestructiveAction('Build mission', 'Replace mission')
     expect(screen.getByLabelText('Plan duration (minutes)')).toHaveValue(10)
     expect(screen.getByLabelText('Build & Explain duration (minutes)')).toHaveValue(15)
     expect(screen.getByLabelText('Test & Debug duration (minutes)')).toHaveValue(15)
@@ -491,8 +523,8 @@ describe('Mission Builder foundation', () => {
 
   it('restores warning acknowledgement and invalidates validation after a Step 4 edit', async () => {
     const firstRender = renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Load P4 Demo', 'Load demo')
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
     fireEvent.click(screen.getByRole('button', { name: 'Run validation' }))
     fireEvent.click(screen.getByLabelText('Acknowledge VAL-11'))
@@ -515,7 +547,7 @@ describe('Mission Builder foundation', () => {
 
   it('shows grouped validation results, the limited-pattern boundary and honest WebMCP fallback guidance', () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByLabelText('No additional adaptation for this demo'))
     fireEvent.change(screen.getByLabelText('Plan duration (minutes)'), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Run validation' }))
@@ -652,7 +684,7 @@ describe('compact workspace shell', () => {
   it('preserves temporary fields, accepted values and unfinished review input across navigation', () => {
     renderApp()
     fireEvent.change(screen.getByLabelText('Class size'), { target: { value: '' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    activateDestructiveAction('Build mission', 'Replace mission')
     fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
     fireEvent.change(screen.getByLabelText('Plan duration (minutes)'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adapt' }))
@@ -720,6 +752,138 @@ describe('compact workspace shell', () => {
     expect(screen.getByRole('complementary', { name: 'Lesson summary' })).toHaveTextContent('The Lost Story Path')
     expect(screen.getAllByText('Teacher approval required')).not.toHaveLength(0)
     expect(screen.getByText('Validation and accepting proposals never approve a lesson.')).toBeVisible()
+  })
+
+  it.each([
+    ['sample mission', 'sample', 'Build mission', 'Replace mission', 'Replace mission with the sample?', /replace the current mission with the sample mission/, 'The Lost Story Path'],
+    ['blank mission', 'blank', 'Build mission', 'Replace mission', 'Clear the current mission?', /clear the current mission content and durations/, 'Untitled mission'],
+    ['new mission', 'sample', 'Start New Mission', 'Start new mission', 'Start a new mission?', /reset the class context and tangible resources/, 'Untitled mission'],
+    ['P4 demo', 'sample', 'Load P4 Demo', 'Load demo', 'Load the P4 demo?', /replace the current lesson—including class context, tangible resources, mission/, 'Untitled mission'],
+  ] as const)('protects the %s action until the teacher confirms', async (_case, mode, triggerName, confirmationName, title, description, resultingTitle) => {
+    const complete = completeAcceptedDraft()
+    expect(complete.validation.readiness).toBe('ready')
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(complete))
+    renderApp()
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(complete))
+    const trigger = screen.getByRole('button', { name: triggerName })
+    if (triggerName === 'Build mission') fireEvent.change(screen.getByLabelText('Starting method'), { target: { value: mode } })
+    const before = window.localStorage.getItem(LESSON_STORAGE_KEY)
+
+    fireEvent.click(trigger)
+    const firstDialog = screen.getByRole('dialog', { name: title })
+    expect(firstDialog).toHaveTextContent(description)
+    expect(firstDialog).toHaveTextContent('Nothing changes until you confirm.')
+    expect(window.localStorage.getItem(LESSON_STORAGE_KEY)).toBe(before)
+    expect(screen.getByRole('complementary', { name: 'Lesson summary' })).toHaveTextContent('Debug the Kelpie’s Story Route')
+    const cancel = within(firstDialog).getByRole('button', { name: 'Cancel' })
+    await waitFor(() => expect(cancel).toHaveFocus())
+    fireEvent.click(cancel)
+    await waitFor(() => expect(trigger).toHaveFocus())
+    expect(window.localStorage.getItem(LESSON_STORAGE_KEY)).toBe(before)
+
+    fireEvent.click(trigger)
+    const confirm = within(screen.getByRole('dialog', { name: title })).getByRole('button', { name: confirmationName })
+    const setItem = vi.spyOn(window.localStorage, 'setItem')
+    setItem.mockClear()
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    await waitFor(() => expect(setItem).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}').title).toBe(resultingTitle)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(trigger).toHaveFocus())
+    setItem.mockRestore()
+  })
+
+  it('cancels with Escape, changes nothing and restores focus', async () => {
+    const complete = completeAcceptedDraft()
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(complete))
+    renderApp()
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(complete))
+    const trigger = screen.getByRole('button', { name: 'Build mission' })
+    const before = window.localStorage.getItem(LESSON_STORAGE_KEY)
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: 'Replace mission with the sample?' })
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus())
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(window.localStorage.getItem(LESSON_STORAGE_KEY)).toBe(before)
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('does not warn for safe no-loss actions and explicitly guards material context replacement', () => {
+    const cleanRender = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Build mission' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Mission title')).toHaveValue('The Lost Story Path')
+    cleanRender.unmount()
+
+    window.localStorage.clear()
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Start New Mission' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    expect(screen.getByRole('dialog', { name: 'Load the P4 demo?' })).toHaveTextContent('class context, tangible resources')
+  })
+
+  it('does not warn when loading an already canonical empty P4 demo context', () => {
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(createGoldenPathDraft('2026-08-30T12:00:00.000Z')))
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Load P4 Demo' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('preserves one complete accepted lesson through effects, all navigation paths and hard remount', async () => {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })) })
+    const complete = completeAcceptedDraft()
+    expect(complete.validation.readiness).toBe('ready')
+    expect(complete.validation.checks).toHaveLength(13)
+    expect(complete.validation.checks.every(({ severity }) => severity === 'pass')).toBe(true)
+    expect(complete.changeHistory).toHaveLength(1)
+    const serialized = JSON.stringify(complete)
+    window.localStorage.setItem(LESSON_STORAGE_KEY, serialized)
+
+    const first = renderApp()
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(complete))
+    fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adapt' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Review/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Validate ready/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Review' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next to Validate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }))
+    expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(complete)
+
+    first.unmount()
+    renderApp()
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(complete))
+    expect(screen.getByRole('complementary', { name: 'Lesson summary' })).toHaveTextContent('Debug the Kelpie’s Story Route')
+    expect(screen.getByLabelText('Plan duration (minutes)')).toHaveValue(10)
+    expect(screen.getByLabelText('Build & Explain duration (minutes)')).toHaveValue(15)
+    expect(screen.getByLabelText('Test & Debug duration (minutes)')).toHaveValue(15)
+    expect(screen.getByLabelText('Reflect & Improve duration (minutes)')).toHaveValue(5)
+    expect(screen.getByLabelText('Support instructions')).toHaveValue('Use concise visual prompts for each route step.')
+    expect(screen.getByLabelText('Extension instructions')).toHaveValue('Invite pupils to replace repeated moves with a loop.')
+    expect(screen.getByRole('heading', { name: 'Resolved proposal history' }).parentElement).toHaveTextContent('complete-history-set')
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+    expect(screen.getByRole('menuitem', { name: /Validate ready/ })).toBeInTheDocument()
+    expect(JSON.stringify(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}'))).toBe(serialized)
+  })
+
+  it('preserves a separate pending proposal fixture through mount and navigation', async () => {
+    const complete = completeAcceptedDraft()
+    const pending = createPendingChangeSet(complete, 'build_tangible_mission', [{ section: 'mission-story', before: complete.mission.missionStory, proposed: 'A pending alternative story.' }], { changeSetId: 'pending-survival-set', operationIds: ['pending-survival-operation'], createdAt: '2026-08-30T13:00:00.000Z' })
+    const withPending = lessonReducer(complete, { type: 'receive-change-set', payload: pending })
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(withPending))
+    renderApp()
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(withPending))
+    fireEvent.click(screen.getByRole('button', { name: /^Review/ }))
+    expect(screen.getByText('1 proposal operation requires teacher review.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mission' }))
+    expect(JSON.parse(window.localStorage.getItem(LESSON_STORAGE_KEY) ?? '{}')).toEqual(withPending)
+    expect(screen.getByLabelText('The challenge')).toHaveValue(complete.mission.missionStory)
   })
 })
 

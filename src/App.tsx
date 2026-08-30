@@ -1,6 +1,6 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import './App.css'
-import { lostStoryPathMission } from './domain/lesson-factories'
+import { createCleanDraft, createGoldenPathDraft, lostStoryPathMission } from './domain/lesson-factories'
 import { changeOperationSchema, classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ChangeOperation, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
 import { deriveChangeSetStatus, getSectionAttribution, getSectionValue, structurallyEqual } from './domain/lesson-change-control'
 import { useLessonStore } from './state/lesson-store'
@@ -37,6 +37,70 @@ const durationFields = {
 } as const
 type DurationField = keyof typeof durationFields
 
+type DestructiveRequest = Readonly<{
+  action: 'build-sample' | 'build-blank' | 'start-new' | 'load-demo'
+  trigger: HTMLButtonElement
+}>
+
+const destructiveCopy: Record<DestructiveRequest['action'], { title: string; description: string; confirmLabel: string }> = {
+  'build-sample': {
+    title: 'Replace mission with the sample?',
+    description: 'This will replace the current mission with the sample mission and clear learner adaptations, pending proposals, resolved history and validation.',
+    confirmLabel: 'Replace mission',
+  },
+  'build-blank': {
+    title: 'Clear the current mission?',
+    description: 'This will clear the current mission content and durations, learner adaptations, pending proposals, resolved history and validation.',
+    confirmLabel: 'Replace mission',
+  },
+  'start-new': {
+    title: 'Start a new mission?',
+    description: 'This will clear mission content, learner adaptations, pending proposals, resolved history and validation, and reset the class context and tangible resources.',
+    confirmLabel: 'Start new mission',
+  },
+  'load-demo': {
+    title: 'Load the P4 demo?',
+    description: 'This will replace the current lesson—including class context, tangible resources, mission, learner adaptations, pending proposals, resolved history and validation—with the P4 demo.',
+    confirmLabel: 'Load demo',
+  },
+}
+
+function containsMeaningfulLessonWork(draft: LessonDraft) {
+  const { mission, adaptations, validation } = draft
+  const missionText = [mission.title, mission.theme, mission.learningIntention, mission.missionStory, mission.plan, mission.buildAndExplain, mission.testAndDebug, mission.reflectAndImprove]
+  const missionLists = [...mission.successCriteria, ...mission.assessmentEvidence]
+  const durationsPresent = [mission.planDurationMinutes, mission.buildAndExplainDurationMinutes, mission.testAndDebugDurationMinutes, mission.reflectAndImproveDurationMinutes].some((value) => value !== null)
+  return mission.challengeLevel !== null
+    || missionText.some((value) => value.trim().length > 0)
+    || missionLists.some((value) => value.trim().length > 0)
+    || durationsPresent
+    || adaptations.supports.length > 0
+    || adaptations.extensions.length > 0
+    || adaptations.supportInstructions.trim().length > 0
+    || adaptations.extensionInstructions.trim().length > 0
+    || adaptations.noAdditionalAdaptation
+    || draft.pendingChanges.some((set) => set.operations.some(({ status }) => status === 'pending'))
+    || draft.changeHistory.length > 0
+    || validation.checks.length > 0
+    || validation.acknowledgedWarningIds.length > 0
+    || draft.activityLog.length > 0
+    || draft.status === 'approved'
+    || draft.approvedAt !== undefined
+}
+
+function destructiveRequestRequiresConfirmation(draft: LessonDraft, action: DestructiveRequest['action']) {
+  if (containsMeaningfulLessonWork(draft)) return true
+  if (action === 'start-new') {
+    const clean = createCleanDraft(draft.createdAt)
+    return !structurallyEqual(draft.classContext, clean.classContext) || !structurallyEqual(draft.resources, clean.resources)
+  }
+  if (action === 'load-demo') {
+    const demo = createGoldenPathDraft(draft.createdAt)
+    return !structurallyEqual(draft.classContext, demo.classContext) || !structurallyEqual(draft.resources, demo.resources)
+  }
+  return false
+}
+
 type WebMcpGuidanceArea = 'adaptation' | 'validation-control' | 'change-review' | 'validation-panel'
 
 function webMcpWorkflowGuidance(status: WebMcpStatus, area: WebMcpGuidanceArea) {
@@ -67,6 +131,7 @@ function App() {
   const { mission, adaptations } = draft
   const [missionStart, setMissionStart] = useState<'sample' | 'blank'>('sample')
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>('setup')
+  const [destructiveRequest, setDestructiveRequest] = useState<DestructiveRequest | null>(null)
   const [classSizeInput, setClassSizeInput] = useState(String(classContext.classSize))
   const [adaptationErrors, setAdaptationErrors] = useState({ support: false, extension: false })
   const [durationInputs, setDurationInputs] = useState<Record<DurationField, string>>(() => Object.fromEntries(
@@ -98,10 +163,30 @@ function App() {
     const parsed = /^\d+$/.test(value) ? Number(value) : null
     updateMission({ [key]: parsed !== null && Number.isInteger(parsed) && parsed > 0 ? parsed : null })
   }
-  const buildMission = () => {
+  const performDestructiveAction = (action: DestructiveRequest['action']) => {
     setAdaptationErrors({ support: false, extension: false })
-    resetDurationInputs(missionStart === 'sample' ? lostStoryPathMission : undefined)
-    dispatch({ type: missionStart === 'sample' ? 'load-sample-mission' : 'clear-mission' })
+    if (action === 'build-sample') {
+      resetDurationInputs(lostStoryPathMission)
+      dispatch({ type: 'load-sample-mission' })
+      return
+    }
+    resetDurationInputs()
+    if (action === 'build-blank') dispatch({ type: 'clear-mission' })
+    if (action === 'start-new') {
+      setClassSizeInput('24')
+      dispatch({ type: 'reset-demo' })
+    }
+    if (action === 'load-demo') {
+      setClassSizeInput('24')
+      dispatch({ type: 'load-demo' })
+    }
+  }
+  const requestDestructiveAction = (action: DestructiveRequest['action'], trigger: HTMLButtonElement) => {
+    if (!destructiveRequestRequiresConfirmation(draft, action)) {
+      performDestructiveAction(action)
+      return
+    }
+    setDestructiveRequest(Object.freeze({ action, trigger }))
   }
   const handleAdaptationOption = (kind: 'supports' | 'extensions', value: string, checked: boolean) => {
     const current = adaptations[kind] as string[]
@@ -125,18 +210,6 @@ function App() {
       ? classContextSchema.shape.classSize.safeParse(Number(value))
       : { success: false as const }
     if (result.success) updateClassContext({ classSize: result.data })
-  }
-  const resetDraft = () => {
-    setClassSizeInput('24')
-    setAdaptationErrors({ support: false, extension: false })
-    resetDurationInputs()
-    dispatch({ type: 'reset-demo' })
-  }
-  const loadDemo = () => {
-    setClassSizeInput('24')
-    setAdaptationErrors({ support: false, extension: false })
-    resetDurationInputs()
-    dispatch({ type: 'load-demo' })
   }
   const handleFocus = (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value as ClassContext['learningFocus'][number]
@@ -183,7 +256,7 @@ function App() {
       <section className="workspace-panel" hidden={activeWorkspace !== 'setup'} aria-labelledby="setup-workspace-title">
         <div className="workspace-heading"><div><p className="eyebrow">Lesson foundations</p><h2 id="setup-workspace-title">Setup</h2></div><ProvenanceMarker type="teacher-authored" /></div>
         <div className="setup-grid">
-        <section className="panel setup-controls" aria-labelledby="start-title"><h3 id="start-title">Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><label>Starting method<select value={missionStart} onChange={(event) => setMissionStart(event.target.value as 'sample' | 'blank')}><option value="sample">Load sample mission</option><option value="blank">Teacher starts from a blank structure</option></select></label><button type="button" className="primary-button" onClick={buildMission}>Build mission</button><button type="button" className="secondary-button" onClick={resetDraft}>Start New Mission</button><button type="button" className="secondary-button" onClick={loadDemo}>Load P4 Demo</button><p>The sample is limited fictional prototype content, not a finished commercial curriculum pack.</p></section>
+        <section className="panel setup-controls" aria-labelledby="start-title"><h3 id="start-title">Start</h3><p>Create a clean fictional draft or load the approved P4 context.</p><label>Starting method<select value={missionStart} onChange={(event) => setMissionStart(event.target.value as 'sample' | 'blank')}><option value="sample">Load sample mission</option><option value="blank">Teacher starts from a blank structure</option></select></label><button type="button" className="secondary-button" onClick={(event) => requestDestructiveAction(missionStart === 'sample' ? 'build-sample' : 'build-blank', event.currentTarget)}>Build mission</button><button type="button" className="secondary-button" onClick={(event) => requestDestructiveAction('start-new', event.currentTarget)}>Start New Mission</button><button type="button" className="secondary-button" onClick={(event) => requestDestructiveAction('load-demo', event.currentTarget)}>Load P4 Demo</button><p className="destructive-warning">Replacing a lesson can clear mission content, adaptations and review history.</p><p>The sample is limited fictional prototype content, not a finished commercial curriculum pack.</p></section>
         <form className="setup-controls" aria-labelledby="class-title">
           <h3 id="class-title">Class context</h3>
           <label>Primary stage<select value={classContext.stage} onChange={(event) => updateClassContext({ stage: primaryStageSchema.parse(event.target.value) })}>{primaryStageSchema.options.map((stage) => <option key={stage}>{stage}</option>)}</select></label>
@@ -247,6 +320,47 @@ function App() {
       </div>
       <LessonSummary title={draft.title} stage={classContext.stage} classSize={classContext.classSize} durationMinutes={classContext.durationMinutes} readiness={validationStatus} completedAreas={completedAreas} totalAreas={4} titleProvenance={sectionProvenance('lesson-identity')} />
     </main>
+    {destructiveRequest && <DestructiveConfirmation request={destructiveRequest} onCancel={() => setDestructiveRequest(null)} onConfirm={(action) => { setDestructiveRequest(null); performDestructiveAction(action) }} />}
+  </div>
+}
+
+function DestructiveConfirmation({ request, onCancel, onConfirm }: { request: DestructiveRequest; onCancel: () => void; onConfirm: (action: DestructiveRequest['action']) => void }) {
+  const cancelButton = useRef<HTMLButtonElement>(null)
+  const dialog = useRef<HTMLDivElement>(null)
+  const handled = useRef(false)
+  const copy = destructiveCopy[request.action]
+  const close = (confirm: boolean) => {
+    if (handled.current) return
+    handled.current = true
+    if (confirm) onConfirm(request.action)
+    else onCancel()
+    requestAnimationFrame(() => request.trigger.focus())
+  }
+  useEffect(() => { cancelButton.current?.focus() }, [])
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      close(false)
+      return
+    }
+    if (event.key !== 'Tab') return
+    const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [])
+    if (controls.length === 0) return
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+    if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+  }
+  return <div className="confirmation-backdrop">
+    <div ref={dialog} className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="destructive-dialog-title" aria-describedby="destructive-dialog-description" onKeyDown={handleKeyDown}>
+      <h2 id="destructive-dialog-title">{copy.title}</h2>
+      <p id="destructive-dialog-description">{copy.description}</p>
+      <p><strong>Nothing changes until you confirm.</strong></p>
+      <div className="confirmation-actions">
+        <button ref={cancelButton} type="button" className="secondary-button" onClick={() => close(false)}>Cancel</button>
+        <button type="button" className="destructive-button" onClick={() => close(true)}>{copy.confirmLabel}</button>
+      </div>
+    </div>
   </div>
 }
 
