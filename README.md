@@ -107,3 +107,20 @@ Tangible Coding Studio, its wider curriculum direction, trademarks, teaching met
 Authorised prototype code in this repository is provided under the [MIT License](LICENSE). The licence does not grant rights to Tangible Coding Ltd trademarks, wider commercial curriculum, proprietary lesson packs, supplier-owned materials or other excluded company intellectual property.
 
 Ian Cameron's written company authorisation is retained privately by Bun Tang and must not be committed. Entrant-jurisdiction eligibility remains a separate unresolved compliance check.
+
+## Licence scope
+
+The MIT License applies to the software source code and demonstration
+materials expressly included in this WebMCP Challenge repository.
+
+“Tangible Coding”, “Tangible Coding Studio”, associated logos and other
+Tangible Coding Ltd brand assets are not licensed for use as identifiers
+of third-party products or services.
+
+Commercial curriculum packs, teacher-training materials, hardware
+designs, customer data, school implementation materials and other
+Tangible Coding Ltd products are not included in this repository unless
+expressly identified.
+
+See [TRADEMARKS.md](TRADEMARKS.md) for the repository’s brand and
+trademark-use boundary.
