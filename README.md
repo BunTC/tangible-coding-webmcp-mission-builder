@@ -34,7 +34,31 @@ The tested baseline is Chrome 149 or later. For the first public Chrome test:
 4. Open the application and inspect DevTools → Application → WebMCP.
 5. Restore the flag to its previous setting and relaunch Chrome after testing if it was changed.
 
-An official origin-trial token may be used later only after genuine enrollment for the deployed public origin. No origin-trial token is included in this repository. Public-origin discovery and invocation through ChatGPT's desktop in-app browser remain required before competition submission and have not yet been recorded as passed.
+An official origin-trial token may be used later only after genuine enrollment for the deployed public origin. No origin-trial token is included in this repository. Public-origin discovery and invocation were verified against the production deployment on 31 August 2026 using a real WebMCP-capable browser agent.
+
+## Verified production runtime test
+
+A real end-to-end WebMCP agent test was completed against the public
+production deployment on 31 August 2026.
+
+- All five registered WebMCP tools were discovered in canonical order.
+- All five tools executed successfully.
+- The first four tools created pending teacher-review proposals rather
+  than directly changing accepted lesson content.
+- Thirteen proposal operations were reviewed and individually accepted.
+- Deterministic validation passed 13 of 13 checks with zero errors and
+  zero warnings.
+- Teacher Guide, Pupil Mission Card and Observation Checklist previews
+  rendered accepted content only.
+- Accepted lesson content, resources, provenance and validation survived
+  a production-page reload.
+- Readiness remained “Ready for teacher review”; no tool approved the
+  lesson.
+- preparationImplemented remained false and preparedOutputs remained [].
+
+This verifies the demonstrated production golden path. It does not claim
+that teacher approval, generated teaching-material files, authentication,
+cloud storage or a commercial production service has been implemented.
 
 ## Local development
 
@@ -106,7 +130,7 @@ Tangible Coding Studio, its wider curriculum direction, trademarks, teaching met
 
 Authorised prototype code in this repository is provided under the [MIT License](LICENSE). The licence does not grant rights to Tangible Coding Ltd trademarks, wider commercial curriculum, proprietary lesson packs, supplier-owned materials or other excluded company intellectual property.
 
-Ian Cameron's written company authorisation is retained privately by Bun Tang and must not be committed. Entrant-jurisdiction eligibility remains a separate unresolved compliance check.
+Ian Cameron's written company authorisation is retained privately by Bun Tang and must not be committed. The competition entry is being made by Tangible Coding Ltd as a United Kingdom organisation, with Bun Tang as its authorised representative. Final eligibility remains subject to the official competition rules and organiser verification.
 
 ## Licence scope
 
