@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import './App.css'
 import { createCleanDraft, createGoldenPathDraft, lostStoryPathMission } from './domain/lesson-factories'
-import { changeOperationSchema, classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ChangeOperation, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
+import { adaptationPlanSchema, changeOperationSchema, classContextSchema, durationMinutesSchema, primaryStageSchema, type AdaptationPlan, type ChangeOperation, type ClassContext, type LessonDraft, type MissionContent, type ResourceInventory } from './domain/lesson-schemas'
 import { deriveChangeSetStatus, getSectionAttribution, getSectionValue, structurallyEqual } from './domain/lesson-change-control'
 import { useLessonStore } from './state/lesson-store'
 import { useWebMcp, type WebMcpStatus } from './webmcp/use-webmcp'
 import { WebMcpStatusIndicator } from './webmcp/webmcp-status'
-import { importProposalPackage, MAX_PROPOSAL_PACKAGE_CHARACTERS } from './domain/lesson-proposal-package'
+import { importProposalPackage, MAX_PROPOSAL_PACKAGE_CHARACTERS, PROPOSAL_PACKAGE_FORMAT, TRANSIENT_PROPOSAL_PACKAGE_VERSION } from './domain/lesson-proposal-package'
 import { createTeacherContextPackage } from './domain/lesson-context-package'
 import { WorkspaceTabs, type WorkspaceId } from './components/WorkspaceTabs'
 import { LessonSummary } from './components/LessonSummary'
@@ -30,6 +30,8 @@ const extensionOptions: Array<{ value: AdaptationPlan['extensions'][number]; lab
   { value: 'loop-challenge', label: 'Loop challenge' }, { value: 'compare-solutions', label: 'Compare solutions' },
   { value: 'design-new-mission', label: 'Design a new mission' },
 ]
+const supportedLearnerSupports = adaptationPlanSchema.shape.supports.element.options
+const supportedExtensionChallenges = adaptationPlanSchema.shape.extensions.element.options
 const durationFields = {
   planDurationMinutes: 'Plan',
   buildAndExplainDurationMinutes: 'Build & Explain',
@@ -401,7 +403,48 @@ function ChangeReview({ draft, webMcpStatus, onImport, onResolve }: { draft: Les
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable in this browser. Check browser clipboard permission and try again.')
       const contextPackage = await createTeacherContextPackage(draft)
-      await navigator.clipboard.writeText(JSON.stringify(contextPackage))
+      const request = `You are helping a teacher prepare a learner-adaptation proposal for Tangible Coding Studio: Mission Builder.
+
+Use only the accepted fictional lesson context supplied below.
+
+Create one complete portable proposal containing:
+1. one learner-support operation; and
+2. one extension-challenge operation.
+
+The proposal will be imported as untrusted pending content. The teacher will review every operation. Do not accept, approve, validate or otherwise modify the lesson.
+
+Return exactly one valid JSON object. Do not include Markdown fences, introductory text, explanations or comments.
+
+Use:
+- "format": "${PROPOSAL_PACKAGE_FORMAT}"
+- "schemaVersion": ${TRANSIENT_PROPOSAL_PACKAGE_VERSION}
+- "sourceTool": "adapt_for_learners"
+- the supplied "contextFingerprint" copied exactly
+- a new unique "changeSetId"
+- a new unique "operationId" for each operation
+
+Place the learner-support operation first and the extension-challenge operation second. Include no more than one operation for each section.
+
+For each operation:
+- copy the current accepted values exactly into "before";
+- put the suggested values into "proposed";
+- use only supported values;
+- do not add unknown fields;
+- do not add approval, validation, resolution or prepared-output fields.
+
+Supported learner-support values: ${supportedLearnerSupports.map((value) => `"${value}"`).join(', ')}.
+Supported extension-challenge values: ${supportedExtensionChallenges.map((value) => `"${value}"`).join(', ')}.
+
+The "sourceTool" field identifies the compatible Mission Builder proposal format. It does not mean that a WebMCP tool was invoked in this conversation. Never claim that the lesson is approved or that a WebMCP tool was invoked.
+
+Return only the complete JSON object.
+
+ACCEPTED TEACHER CONTEXT
+
+<teacher-context>
+${JSON.stringify(contextPackage)}
+</teacher-context>`
+      await navigator.clipboard.writeText(request)
       setCopyStatus({ kind: 'success', message: 'Accepted lesson context copied. ChatGPT may use it temporarily to create the next proposal or validation result. Copying does not accept changes, approve the lesson or synchronize browser storage.' })
     } catch {
       setCopyStatus({ kind: 'error', message: 'Could not copy the accepted lesson context. Check clipboard permission and try again.' })

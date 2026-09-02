@@ -977,10 +977,37 @@ describe('Step 7 human change review', () => {
     expect(screen.getByText(/Copies only the currently accepted fictional class context/)).toBeInTheDocument()
     fireEvent.click(button)
     await waitFor(() => expect(writeText).toHaveBeenCalledOnce())
-    const copied = JSON.parse(writeText.mock.calls[0][0])
-    expect(copied).toMatchObject({ format: 'tangible-coding-teacher-context', schemaVersion: 1, classContext: draft.classContext })
-    expect(JSON.stringify(copied)).not.toMatch(/pendingChanges|changeHistory|validation|approvedAt/)
-    expect(screen.getByText(/Accepted lesson context copied\. ChatGPT may use it temporarily/)).toHaveAttribute('role', 'status')
+    const copied = writeText.mock.calls[0][0]
+    expect(copied).toContain('prepare a learner-adaptation proposal for Tangible Coding Studio: Mission Builder')
+    expect(copied).toContain('"format": "tangible-coding-agent-proposal"')
+    expect(copied).toContain('"schemaVersion": 2')
+    expect(copied).toContain('"sourceTool": "adapt_for_learners"')
+    expect(copied).toContain('supplied "contextFingerprint" copied exactly')
+    expect(copied).toContain('new unique "changeSetId"')
+    expect(copied).toContain('new unique "operationId" for each operation')
+    expect(copied).toContain('Return only the complete JSON object.')
+    expect(copied).toContain('Supported learner-support values: "reduced-reading", "visual-instructions", "fewer-steps", "additional-time", "paired-explanation", "predictable-roles".')
+    expect(copied).toContain('Supported extension-challenge values: "longer-route", "extra-debugging-fault", "loop-challenge", "compare-solutions", "design-new-mission".')
+    const serializedContext = copied.match(/<teacher-context>\n([^\n]+)\n<\/teacher-context>/)?.[1]
+    expect(serializedContext).toBeDefined()
+    const context = JSON.parse(serializedContext ?? '{}')
+    expect(context).toMatchObject({ format: 'tangible-coding-teacher-context', schemaVersion: 1, classContext: draft.classContext })
+    expect(serializedContext).toBe(JSON.stringify(context))
+    expect(copied).toContain(context.contextFingerprint)
+    expect(context).toMatchObject({
+      classContext: draft.classContext,
+      tangibleResources: draft.resources,
+      mission: draft.mission,
+      learnerAdaptations: {
+        supports: draft.adaptations.supports,
+        extensions: draft.adaptations.extensions,
+        supportInstructions: draft.adaptations.supportInstructions,
+        extensionInstructions: draft.adaptations.extensionInstructions,
+        noAdditionalAdaptation: draft.adaptations.noAdditionalAdaptation,
+      },
+    })
+    expect(serializedContext).not.toMatch(/pendingChanges|changeHistory|validation|preparedOutputs|approvedAt|approval|pupilNames|schoolDetails|diagnoses|attainment/)
+    expect(screen.getByText('Accepted lesson context copied. ChatGPT may use it temporarily to create the next proposal or validation result. Copying does not accept changes, approve the lesson or synchronize browser storage.')).toHaveAttribute('role', 'status')
   })
 
   it.each(['complete serialized context', 'unique sensitive marker'] as const)('reports a fixed clipboard failure without leaking %s or changing state', async (failureMode) => {
