@@ -966,6 +966,27 @@ describe('Step 7 human change review', () => {
     expect(screen.getByText('No proposal operations require review.')).toBeInTheDocument()
   })
 
+  it('rejects the observed malformed adaptation package with array operations and no createdAt', async () => {
+    const draft = createGoldenPathDraft('2026-08-30T12:00:00.000Z')
+    window.localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(draft))
+    renderApp()
+    const malformed = {
+      changeSetId: 'malformed-production-change-set',
+      contextFingerprint: 'a'.repeat(64),
+      format: 'tangible-coding-agent-proposal',
+      operations: [
+        { before: draft.adaptations.supports, operationId: 'malformed-support', proposed: ['visual-instructions'], section: 'learner-support' },
+        { before: draft.adaptations.extensions, operationId: 'malformed-extension', proposed: ['loop-challenge'], section: 'extension-challenge' },
+      ],
+      schemaVersion: 2,
+      sourceTool: 'adapt_for_learners',
+    }
+    fireEvent.change(screen.getByLabelText('Proposal package JSON'), { target: { value: JSON.stringify(malformed) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Import proposal' }))
+    expect(await screen.findByText('The proposal package does not match the strict pending-proposal format.')).toBeInTheDocument()
+    expect(screen.getByText('No proposal operations require review.')).toBeInTheDocument()
+  })
+
   it('copies accepted context only after the accessible teacher action and reports success', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
@@ -988,6 +1009,19 @@ describe('Step 7 human change review', () => {
     expect(copied).toContain('Return only the complete JSON object.')
     expect(copied).toContain('Supported learner-support values: "reduced-reading", "visual-instructions", "fewer-steps", "additional-time", "paired-explanation", "predictable-roles".')
     expect(copied).toContain('Supported extension-challenge values: "longer-route", "extra-debugging-fault", "loop-challenge", "compare-solutions", "design-new-mission".')
+    expect(copied).toContain('"createdAt": "<current UTC timestamp in YYYY-MM-DDTHH:mm:ss.sssZ format>"')
+    expect(copied).toContain('"createdAt" must be a valid UTC ISO-8601 timestamp')
+    expect(copied).toContain('must end in Z')
+    expect(copied).toContain('must use exactly this shape: YYYY-MM-DDTHH:mm:ss.sssZ')
+    expect(copied).toContain('Do not use a timezone offset such as +01:00.')
+    expect(copied).toContain('"before": {\n        "supportInstructions"')
+    expect(copied).toContain('"proposed": {\n        "supportInstructions"')
+    expect(copied).toContain('"supports": ["<complete proposed supported values>"]')
+    expect(copied).toContain('"before": {\n        "extensionInstructions"')
+    expect(copied).toContain('"proposed": {\n        "extensionInstructions"')
+    expect(copied).toContain('"extensions": ["<complete proposed supported values>"]')
+    expect(copied).toContain('"before" and "proposed" must be objects, never arrays or strings.')
+    expect(copied).toContain('Every property shown in this exact JSON structure is required.')
     const serializedContext = copied.match(/<teacher-context>\n([^\n]+)\n<\/teacher-context>/)?.[1]
     expect(serializedContext).toBeDefined()
     const context = JSON.parse(serializedContext ?? '{}')

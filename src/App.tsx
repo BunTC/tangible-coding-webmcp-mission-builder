@@ -435,6 +435,53 @@ For each operation:
 Supported learner-support values: ${supportedLearnerSupports.map((value) => `"${value}"`).join(', ')}.
 Supported extension-challenge values: ${supportedExtensionChallenges.map((value) => `"${value}"`).join(', ')}.
 
+Every property shown in this exact JSON structure is required. Replace all angle-bracket descriptions with real values:
+
+{
+  "changeSetId": "<new unique UUID>",
+  "contextFingerprint": "<copy the supplied fingerprint exactly>",
+  "createdAt": "<current UTC timestamp in YYYY-MM-DDTHH:mm:ss.sssZ format>",
+  "format": "tangible-coding-agent-proposal",
+  "operations": [
+    {
+      "before": {
+        "supportInstructions": "<copy the current accepted supportInstructions exactly>",
+        "supports": ["<copy every current accepted support value exactly>"]
+      },
+      "operationId": "<new unique UUID>",
+      "proposed": {
+        "supportInstructions": "<complete suggested teacher instructions>",
+        "supports": ["<complete proposed supported values>"]
+      },
+      "section": "learner-support"
+    },
+    {
+      "before": {
+        "extensionInstructions": "<copy the current accepted extensionInstructions exactly>",
+        "extensions": ["<copy every current accepted extension value exactly>"]
+      },
+      "operationId": "<new unique UUID>",
+      "proposed": {
+        "extensionInstructions": "<complete suggested teacher instructions>",
+        "extensions": ["<complete proposed supported values>"]
+      },
+      "section": "extension-challenge"
+    }
+  ],
+  "schemaVersion": 2,
+  "sourceTool": "adapt_for_learners"
+}
+
+Do not return the angle-bracket placeholders.
+Replace every placeholder with a real value.
+"before" and "proposed" must be objects, never arrays or strings.
+The learner-support objects must contain exactly "supportInstructions" and "supports".
+The extension-challenge objects must contain exactly "extensionInstructions" and "extensions".
+Copy all four current accepted adaptation values exactly into the corresponding "before" object.
+"createdAt" must be a valid UTC ISO-8601 timestamp, must end in Z and must use exactly this shape: YYYY-MM-DDTHH:mm:ss.sssZ. Do not use a timezone offset such as +01:00.
+Use no properties other than those shown in the template.
+Return only the completed JSON object.
+
 The "sourceTool" field identifies the compatible Mission Builder proposal format. It does not mean that a WebMCP tool was invoked in this conversation. Never claim that the lesson is approved or that a WebMCP tool was invoked.
 
 Return only the complete JSON object.
